@@ -1,0 +1,404 @@
+// Acciones: lo que pasa al tocar o cambiar algo. Todo se escribe en el servidor
+// (Firestore) y la pantalla se actualiza sola cuando llega el cambio.
+import * as B from './backend.js';
+import { D, U, R, cats, C, P, cname, players, playersByName, myName, userOf, photoOf, pendingUsers, feeOf, paidOf, attId, syncSubs, stopHost, playerOfUser, list } from './state.js';
+import { FT, POS, TYPES, slots, OBM, yearGrid, getDefer, isApp, av, uav } from './views.js';
+import { OB, choosePhoto, obInput, obSave, hostModal, profileSheet } from './onboard.js';
+import { LS, esc, rid, today, thisMonth, addMonth, monthName, slug, cleanName, nameProblem, shrink, pickFiles, toast, ask, sheet, viewImg, vibrate, byName, norm, ymd, parseDay } from './util.js';
+
+let render = () => {};
+export let sheetRefresh = null;
+export function bindActions(r) { render = r; }
+
+const val = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; };
+const clear = (...ids) => ids.forEach(id => { const e = document.getElementById(id); if (e) e.value = e.tagName === 'SELECT' ? (e.options[0] ? e.options[0].value : '') : ''; });
+function log(x) { B.set('log/' + rid(), { t: Date.now(), w: myName(), x }, false); }
+const hostOnly = () => { if (!R.host) { toast('Solo un anfitrión puede hacer cambios.'); return false; } return true; };
+
+function go(tab) {
+  U.tab = tab; U.cat = null; U.slot = null; U.editMatch = null; U.editTrain = null; OBM.crest = '';
+  LS.set('tab', tab);
+  if (tab === 'lista' && !U.lcat) { const c = cats()[0]; U.lcat = c ? c.id : ''; }
+  syncSubs(); render(); scrollTo(0, 0);
+  const b = document.querySelector(`#nav [data-tab="${tab}"]`); b && b.scrollIntoView({ inline: 'center', block: 'nearest' });
+}
+
+// ── Clics ───────────────────────────────────────────────────────────────────
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-tab],[data-act],[data-go]');
+  if (!t || t.closest('.sheet') || t.closest('.dlg') || t.closest('.cropper')) return;
+  if (t.dataset.tab) return go(t.dataset.tab);
+  if (t.dataset.go) return go(t.dataset.go);
+  const a = t.dataset.act, id = t.dataset.id;
+  const fn = ACT[a];
+  if (fn) fn(t, id, e);
+});
+
+const ACT = {
+  retry: () => location.reload(),
+  hostkey: () => hostModal(render),
+  profile: () => profileSheet(render),
+  'ob-photo': async () => { const u = await choosePhoto(); if (u) { OB.photo = u; render(); } },
+  'ob-save': () => obSave(render),
+  install: () => {
+    const d = getDefer();
+    if (d) { d.prompt(); d.userChoice && d.userChoice.then(() => render()); return; }
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    sheet(`<div class="name center">Instalar Elite Sport</div><ol class="steps">${ios
+      ? '<li>Abre la app en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> (cuadro con flecha).</li><li>Elige <b>Agregar a pantalla de inicio</b>.</li>'
+      : '<li>Abre la app en <b>Chrome</b>.</li><li>Toca los <b>tres puntos</b> arriba a la derecha.</li><li>Elige <b>Instalar app</b> (o «Agregar a la pantalla principal» → <b>Instalar</b>).</li>'}</ol><div class="mute small">Tu sesión y tus datos se conservan al instalarla.</div>`);
+  },
+
+  // Categorías
+  opencat: (t, id) => { U.tab = 'cats'; U.cat = id; U.slot = null; LS.set('tab', 'cats'); render(); scrollTo(0, 0); },
+  back: () => { U.cat = null; U.slot = null; render(); },
+  addcat: () => {
+    if (!hostOnly()) return;
+    const v = val('cn');
+    if (!v) { document.getElementById('cn').focus(); return; }
+    if (cats().some(c => norm(c.name) === norm(v))) { toast('Ya existe una categoría con ese nombre.'); return; }
+    const id = rid();
+    B.set('cats/' + id, { name: v, fmt: 'Fútbol 11', form: '4-4-2', lineup: {}, t: Date.now() }, false);
+    log('Categoría creada: ' + v); clear('cn'); render();
+  },
+  rencat: (t, id) => {
+    const c = C(id); if (!c) return;
+    const s = sheet(`<div class="name">Nombre de la categoría</div><input id="rn" maxlength="30" value="${esc(c.name)}" style="margin:10px 0"><button class="btn" data-k="ok">Guardar</button>`);
+    s.body.querySelector('[data-k]').onclick = () => {
+      const v = s.body.querySelector('#rn').value.trim(); if (!v) return;
+      B.update('cats/' + id, { name: v }); log('Categoría renombrada: ' + c.name + ' → ' + v); s.close();
+    };
+  },
+  delcat: (t, id) => {
+    const c = C(id); if (!c) return;
+    const ps = players(id);
+    ask('¿Borrar la categoría ' + c.name + '?', () => {
+      const ops = [['del', 'cats/' + id]];
+      ps.forEach(p => { ops.push(['del', 'players/' + p.id]); ops.push(['del', 'pay/' + p.id]); });
+      B.batch(ops); log('Categoría borrada: ' + c.name); U.cat = null; render();
+    }, { sub: ps.length ? `También se borrarán sus ${ps.length} jugadores y sus pagos.` : '' });
+  },
+  slot: (t) => { const i = +t.dataset.i; U.slot = U.slot === i ? null : i; render(); },
+  closeslot: () => { U.slot = null; render(); },
+  put: (t, id) => {
+    const c = C(U.cat); if (!c || U.slot === null) return;
+    const upd = { ['lineup.' + U.slot]: id };
+    Object.keys(c.lineup || {}).forEach(k => { if (c.lineup[k] === id && +k !== U.slot) upd['lineup.' + k] = B.DEL(); });
+    B.update('cats/' + c.id, upd); U.slot = null; render();
+  },
+  clearslot: () => { const c = C(U.cat); if (!c) return; B.update('cats/' + c.id, { ['lineup.' + U.slot]: B.DEL() }); U.slot = null; render(); },
+  addplayer: () => {
+    if (!hostOnly()) return;
+    const n = val('pn'), num = val('pm').replace(/\D/g, '').slice(0, 3), pos = val('pp');
+    if (!n) { document.getElementById('pn').focus(); return; }
+    const prob = nameProblem(n);
+    if (prob) { toast(prob); return; }
+    B.set('players/' + rid(), { name: cleanName(n), num, pos, cat: U.cat, t: Date.now() }, false);
+    log('Jugador agregado: ' + cleanName(n) + ' (' + cname(U.cat) + ')'); clear('pn', 'pm'); render();
+    setTimeout(() => { const e = document.getElementById('pn'); e && e.focus(); }, 30);
+  },
+  editplayer: (t, id) => playerSheet(id),
+
+  // Personas
+  pseg: (t, id) => { U.personas = id; render(); },
+  approve: (t, id) => approveSheet(id),
+  linkto: (t, id) => link(id, t.dataset.p),
+  linkuser: (t, id) => linkSheet(id),
+  notplayer: (t, id) => { B.update('users/' + id, { np: true }); toast('Listo: no aparecerá como jugador pendiente.', { ok: true, action: 'Deshacer', onAction: () => B.update('users/' + id, { np: B.DEL() }) }); },
+  person: (t, id) => personSheet(id),
+  unhost: (t, id) => {
+    const u = D.users[id], me = id === B.uid;
+    ask(me ? '¿Dejar de ser anfitrión?' : '¿Quitarle el rol de anfitrión a ' + ((u && u.name) || 'esta persona') + '?', () => {
+      B.del(`hostkeys/${R.key}/members/${id}`);
+      if (me) { stopHost(); go('inicio'); toast('Ya no eres anfitrión en este aparato.'); }
+      else { log('Quitó anfitrión: ' + ((u && u.name) || '')); toast('Rol de anfitrión quitado.', { ok: true }); }
+    }, { yes: me ? 'Sí, dejar' : 'Sí, quitar', sub: 'Para volver a ser anfitrión tendrá que escribir el código.' });
+  },
+
+  // Partidos
+  fcat: (t, id) => { U.fcat = id; LS.set('fcat', id); render(); },
+  mcrest: () => { pickFiles({ accept: 'image/*' }).then(async fs => { if (!fs[0]) return; try { OBM.crest = await shrink(fs[0], 200, 0.86); render(); } catch (e) { toast('No se pudo abrir esa imagen.'); } }); },
+  crest: (t) => {
+    const name = t.dataset.name;
+    pickFiles({ accept: 'image/*' }).then(async fs => {
+      if (!fs[0]) return;
+      try { const d = await shrink(fs[0], 200, 0.86); B.set('rivals/' + slug(name), { name, img: B.putImage(d) }, false); log('Escudo de ' + name); }
+      catch (e) { toast('No se pudo abrir esa imagen.'); }
+    });
+  },
+  savematch: () => {
+    if (!hostOnly()) return;
+    const rival = val('mr');
+    if (!rival) { document.getElementById('mr').focus(); toast('Escribe el nombre del rival.'); return; }
+    const date = val('md') || today();
+    const m = { rival, place: val('mp'), date, time: val('mt'), cat: val('mc'), kit: val('mk') };
+    if (OBM.crest) B.set('rivals/' + slug(rival), { name: rival, img: B.putImage(OBM.crest) }, false);
+    if (U.editMatch && D.matches[U.editMatch]) { B.update('matches/' + U.editMatch, m); log('Partido editado: vs ' + rival); toast('Partido actualizado.', { ok: true }); }
+    else { m.res = ''; m.t = Date.now(); B.set('matches/' + rid(), m, false); log('Partido agregado: vs ' + rival); toast('Partido guardado. Ya lo ven todos.', { ok: true }); }
+    U.editMatch = null; OBM.crest = ''; clear('mr', 'mp', 'mt', 'mk'); render();
+  },
+  editmatch: (t, id) => { U.editMatch = id; OBM.crest = ''; ['mr', 'mp', 'md', 'mt', 'mc', 'mk'].forEach(k => { const e = document.getElementById(k); if (e) e.removeAttribute('id'); }); render(); scrollTo({ top: 0, behavior: 'smooth' }); },
+  canceledit: () => { U.editMatch = null; U.editTrain = null; OBM.crest = ''; ['mr', 'mp', 'md', 'mt', 'mc', 'mk', 'td', 'tt', 'tp', 'tc', 'ty', 'tn'].forEach(k => { const e = document.getElementById(k); if (e) e.removeAttribute('id'); }); render(); },
+  delmatch: (t, id) => { const m = D.matches[id]; ask('¿Borrar el partido vs ' + (m ? m.rival : '') + '?', () => { B.del('matches/' + id); log('Partido borrado: vs ' + (m ? m.rival : '')); if (U.editMatch === id) U.editMatch = null; }); },
+
+  // Entrenamientos
+  savetrain: () => {
+    if (!hostOnly()) return;
+    const x = { date: val('td') || today(), time: val('tt'), place: val('tp'), cat: val('tc'), type: val('ty') || 'Técnico', note: val('tn') };
+    if (U.editTrain && D.train[U.editTrain]) { B.update('train/' + U.editTrain, x); log('Entrenamiento editado (' + x.date + ')'); toast('Entrenamiento actualizado.', { ok: true }); }
+    else {
+      const n = Math.max(1, Math.min(12, +val('tr') || 1)), ops = [];
+      for (let i = 0; i < n; i++) { const d = parseDay(x.date); d.setDate(d.getDate() + 7 * i); ops.push(['set', 'train/' + rid() + i, Object.assign({}, x, { date: ymd(d), photos: [], t: Date.now() }), false]); }
+      B.batch(ops); log(n > 1 ? `Entrenamientos programados: ${n} semanas desde ${x.date}` : 'Entrenamiento programado: ' + x.date);
+      toast(n > 1 ? `Se programaron ${n} entrenamientos.` : 'Entrenamiento guardado. Ya lo ven todos.', { ok: true });
+    }
+    U.editTrain = null; clear('tt', 'tp', 'tn', 'tr'); render();
+  },
+  edittrain: (t, id) => { U.editTrain = id; ['td', 'tt', 'tp', 'tc', 'ty', 'tn'].forEach(k => { const e = document.getElementById(k); if (e) e.removeAttribute('id'); }); render(); scrollTo({ top: 0, behavior: 'smooth' }); },
+  deltrain: (t, id) => {
+    const x = D.train[id];
+    ask('¿Borrar este entrenamiento?', () => {
+      B.del('train/' + id); (x && x.photos || []).forEach(p => { B.dropImage(p.th); B.dropImage(p.full); });
+      log('Entrenamiento borrado (' + (x ? x.date : '') + ')');
+    }, { sub: x && x.photos && x.photos.length ? 'También se borrarán sus fotos.' : '' });
+  },
+  morepast: () => { U.pastN += 10; render(); },
+  trainphotos: (t, id) => {
+    pickFiles({ accept: 'image/*', multiple: true }).then(async fs => {
+      if (!fs.length) return;
+      const k = Math.min(fs.length, 12);
+      toast('Subiendo ' + k + (k === 1 ? ' foto…' : ' fotos…'), { ok: true, ms: 8000 });
+      let ok = 0;
+      for (const f of fs.slice(0, 12)) {
+        try {
+          const th = await shrink(f, 360, 0.72), full = await shrink(f, 1280, 0.8);
+          B.update('train/' + id, { photos: B.UNION({ th: B.putImage(th), full: B.putImage(full) }) }); ok++;
+        } catch (e) {}
+      }
+      log('Fotos de entrenamiento: ' + ok);
+      toast(ok ? (ok === 1 ? 'Foto agregada.' : ok + ' fotos agregadas.') : 'No se pudieron abrir las fotos.', { ok: !!ok });
+    });
+  },
+  viewphoto: (t, id) => {
+    const x = D.train[id], p = x && (x.photos || [])[+t.dataset.i];
+    if (!p) return;
+    const o = document.createElement('div');
+    o.className = 'veil zoom';
+    o.innerHTML = `<img alt="Foto del entrenamiento" src="${B.imgCached(p.full) || B.imgCached(p.th) || ''}">${R.host ? '<button class="btn alt zdel">Borrar foto</button>' : ''}`;
+    const im = o.querySelector('img');
+    B.getImage(p.full).then(u => { if (u) im.src = u; });
+    o.onclick = e => {
+      if (e.target.closest('.zdel')) { ask('¿Borrar esta foto?', () => { B.update('train/' + id, { photos: B.REMOVE(p) }); B.dropImage(p.th); B.dropImage(p.full); }); }
+      o.remove();
+    };
+    document.body.appendChild(o);
+  },
+
+  // Asistencia
+  mark: (t, id) => {
+    if (!hostOnly()) return;
+    const cur = D.att && D.att.m && D.att.m[id], v = t.dataset.v;
+    B.set('att/' + attId(), { date: U.date, kind: U.kind, cat: U.lcat, m: { [id]: cur === v ? B.DEL() : v } });
+    vibrate(8);
+  },
+  allP: () => { const m = {}; players(U.lcat).forEach(p => { m[p.id] = 'P'; }); B.set('att/' + attId(), { date: U.date, kind: U.kind, cat: U.lcat, m }); },
+  allClear: () => ask('¿Borrar las marcas de este día?', () => B.set('att/' + attId(), { date: U.date, kind: U.kind, cat: U.lcat, m: {} }, false), { yes: 'Sí, limpiar' }),
+
+  // Pagos
+  mprev: () => { U.month = addMonth(U.month, -1); render(); },
+  mnext: () => { U.month = addMonth(U.month, 1); render(); },
+  pcat: (t, id) => { U.pcat = id; render(); },
+  pay: (t, id) => togglePay(id, U.month),
+  payhist: (t, id) => payHistSheet(id),
+  sharepay: () => {
+    const ym = U.month;
+    const ps = players().filter(p => (!U.pcat || p.cat === U.pcat) && !paidOf(p.id, ym)).sort((a, b) => byName(cname(a.cat), cname(b.cat)) || byName(a.name, b.name));
+    const txt = `⚽ Elite Sport · Pagos de ${monthName(ym).toLowerCase()}${U.pcat ? ' · ' + cname(U.pcat) : ''}\n` +
+      (ps.length ? `Pendientes (${ps.length}):\n` + ps.map(p => `• ${p.name}${U.pcat ? '' : ' (' + cname(p.cat) + ')'}${feeOf(p.cat) ? ' — $' + feeOf(p.cat).toLocaleString('es-CO') : ''}`).join('\n') : '¡Todos están al día! 🎉');
+    if (navigator.share) navigator.share({ text: txt }).catch(() => {});
+    else { try { navigator.clipboard.writeText(txt); toast('Lista copiada. Pégala en WhatsApp.', { ok: true }); } catch (e) {} window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank'); }
+  },
+
+  // Uniformes
+  viewkit: (t, id) => { const k = D.kits[id]; const u = k && k.img ? B.imgCached(k.img) : 'assets/uniforme-' + (id === 'red' ? 'rojo' : 'negro') + '.jpg'; if (u) viewImg(u); else B.getImage(k.img).then(x => x && viewImg(x)); },
+  kitphoto: (t, id) => {
+    pickFiles({ accept: 'image/*' }).then(async fs => {
+      if (!fs[0]) return;
+      try { const d = await shrink(fs[0], 900, 0.82, '#111'); const old = D.kits[id] && D.kits[id].img; B.set('kits/' + id, { img: B.putImage(d) }, false); B.dropImage(old); log('Foto del uniforme ' + (id === 'red' ? 'rojo' : 'negro')); toast('Foto del uniforme actualizada.', { ok: true }); }
+      catch (e) { toast('No se pudo abrir esa imagen.'); }
+    });
+  }
+};
+
+// ── Pagos ───────────────────────────────────────────────────────────────────
+function togglePay(pid, ym, quiet) {
+  if (!hostOnly()) return;
+  const p = P(pid); if (!p) return;
+  const was = paidOf(pid, ym);
+  if (was) B.set('pay/' + pid, { m: { [ym]: B.DEL() } });
+  else B.set('pay/' + pid, { m: { [ym]: { t: Date.now(), by: myName(), v: feeOf(p.cat) || 0 } } });
+  log((was ? 'Quitó pago: ' : 'Pagó: ') + p.name + ' (' + monthName(ym).toLowerCase() + ')');
+  vibrate(10);
+  if (!quiet) toast(was ? p.name + ': pendiente.' : p.name + ': pagó ✓', { ok: !was, action: 'Deshacer', onAction: () => {
+    if (was) B.set('pay/' + pid, { m: { [ym]: was } }); else B.set('pay/' + pid, { m: { [ym]: B.DEL() } });
+  } });
+}
+function payHistSheet(pid) {
+  const p = P(pid); if (!p) return;
+  let y = U.month.slice(0, 4);
+  const html = () => {
+    const q = P(pid); if (!q) return '<div class="empty">El jugador ya no existe.</div>';
+    const n = Array.from({ length: 12 }, (_, i) => paidOf(pid, y + '-' + String(i + 1).padStart(2, '0'))).filter(Boolean).length;
+    return `<div class="row">${av(q)}<div class="grow"><div class="name">${esc(q.name)}</div><div class="mute">${esc(cname(q.cat))}${feeOf(q.cat) ? ' · cuota ' + '$' + feeOf(q.cat).toLocaleString('es-CO') : ''}</div></div></div>
+      <div class="monthbar sm"><button data-k="yp" aria-label="Año anterior">‹</button><div class="mlabel">${y}</div><button data-k="yn" aria-label="Año siguiente">›</button></div>
+      ${yearGrid(q, y, true)}<div class="mute small center">${n} ${n === 1 ? 'mes pagado' : 'meses pagados'} en ${y} · toca un mes para cambiarlo<br>– = antes de entrar al club</div>`;
+  };
+  const s = sheet(html(), { onClose: () => { sheetRefresh = null; } });
+  sheetRefresh = () => { s.set(html()); hydrate(s.body); };
+  hydrate(s.body);
+  s.body.addEventListener('click', e => {
+    const b = e.target.closest('[data-k],[data-act="payym"]'); if (!b) return;
+    if (b.dataset.k === 'yp') { y = String(+y - 1); sheetRefresh(); }
+    else if (b.dataset.k === 'yn') { y = String(+y + 1); sheetRefresh(); }
+    else togglePay(pid, b.dataset.ym, true);
+  });
+}
+export function hydrate(root) {
+  root.querySelectorAll('img[data-img]').forEach(el => { if (!el.getAttribute('src')) B.getImage(el.dataset.img).then(u => { if (u && el.isConnected) el.src = u; }); });
+}
+
+// ── Plantel y personas ──────────────────────────────────────────────────────
+function playerSheet(pid) {
+  const p = P(pid); if (!p) return;
+  let photo = null; // null = sin cambio, '' = quitar, dataURL = nueva
+  const u = userOf(p);
+  const html = () => `<div class="center"><button class="pp has big" data-k="photo" aria-label="Cambiar foto">${photo ? `<img src="${photo}" alt="">` : photo === '' ? '<span class="cam">📷</span>' : av(p, 'fill')}</button><div class="mute small">${u && !p.photo ? 'Usa la foto de su perfil en la app' : 'Toca para cambiar la foto'}</div></div>
+    <label class="lbl">Nombre</label><input id="ep-n" maxlength="40" value="${esc(p.name)}">
+    <div class="grid" style="margin-top:8px"><input id="ep-num" inputmode="numeric" maxlength="3" placeholder="Número" value="${esc(p.num || '')}"><select id="ep-pos">${POS.map(x => `<option${x === p.pos ? ' selected' : ''}>${x}</option>`).join('')}</select></div>
+    <label class="lbl">Categoría</label><select id="ep-cat">${cats().map(c => `<option value="${c.id}"${c.id === p.cat ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
+    <div class="linkbox">${u ? `<div class="row">${uav(u)}<div class="grow"><div class="name">${esc(u.name)}</div><div class="mute">Vinculado a la app</div></div><button class="btn alt sm" data-k="unlink">Desvincular</button></div>` : `<div class="mute">No está vinculado a ninguna persona de la app.</div>${unlinkedUsers().length ? `<select id="ep-link"><option value="">Vincular con…</option>${unlinkedUsers().map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>` : ''}`}</div>
+    <button class="btn" data-k="save" style="margin-top:12px">Guardar</button>
+    <button class="btn alt danger" data-k="del" style="margin-top:8px">Quitar del plantel</button>`;
+  const s = sheet(html());
+  hydrate(s.body);
+  s.body.addEventListener('click', async e => {
+    const b = e.target.closest('[data-k]'); if (!b) return;
+    const k = b.dataset.k;
+    if (k === 'photo') { const d = await choosePhoto(); if (d) { const keep = grab(s.body); photo = d; s.set(html()); put(s.body, keep); } }
+    else if (k === 'unlink') { B.update('players/' + pid, { uid: B.DEL() }); log('Desvinculó a ' + p.name); s.close(); }
+    else if (k === 'del') {
+      ask('¿Quitar a ' + p.name + ' del plantel?', () => {
+        const ops = [['del', 'players/' + pid], ['del', 'pay/' + pid]];
+        cats().forEach(c => Object.keys(c.lineup || {}).forEach(i => { if (c.lineup[i] === pid) ops.push(['update', 'cats/' + c.id, { ['lineup.' + i]: B.DEL() }]); }));
+        B.batch(ops); log('Jugador quitado: ' + p.name); s.close();
+      }, { sub: 'También se borra su historial de pagos. Si tiene la app, seguirá registrado como persona.' });
+    }
+    else if (k === 'save') {
+      const n = s.body.querySelector('#ep-n').value.trim(), prob = nameProblem(n);
+      if (prob) { toast(prob); return; }
+      const cat = s.body.querySelector('#ep-cat').value;
+      const upd = { name: cleanName(n), num: s.body.querySelector('#ep-num').value.replace(/\D/g, '').slice(0, 3), pos: s.body.querySelector('#ep-pos').value, cat };
+      if (photo) upd.photo = B.putImage(photo);
+      const lk = s.body.querySelector('#ep-link');
+      if (lk && lk.value) upd.uid = lk.value;
+      const ops = [['update', 'players/' + pid, upd]];
+      if (cat !== p.cat) { const oc = C(p.cat); if (oc) Object.keys(oc.lineup || {}).forEach(i => { if (oc.lineup[i] === pid) ops.push(['update', 'cats/' + oc.id, { ['lineup.' + i]: B.DEL() }]); }); }
+      B.batch(ops); log('Jugador editado: ' + upd.name); s.close(); toast('Cambios guardados.', { ok: true });
+    }
+  });
+}
+const grab = root => Array.from(root.querySelectorAll('input[id],select[id]')).map(e => [e.id, e.value]);
+const put = (root, kv) => kv.forEach(([id, v]) => { const e = root.querySelector('#' + id); if (e) e.value = v; });
+const unlinkedUsers = () => list(D.users, (a, b) => byName(a.name, b.name)).filter(u => !playerOfUser(u.id));
+
+function approveSheet(uidv) {
+  const u = D.users[uidv]; if (!u) return;
+  if (!cats().length) { toast('Primero crea una categoría.'); return; }
+  const s = sheet(`<div class="row">${uav(u, 'lg')}<div class="grow"><div class="name">${esc(u.name)}</div><div class="mute">Agregar al plantel</div></div></div>
+    <label class="lbl">Categoría</label><select id="ap-cat">${cats().map(c => `<option value="${c.id}"${c.id === u.cat ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
+    <div class="grid" style="margin-top:8px"><input id="ap-num" inputmode="numeric" maxlength="3" placeholder="Número (opcional)"><select id="ap-pos">${POS.map(x => `<option${x === 'Medio' ? ' selected' : ''}>${x}</option>`).join('')}</select></div>
+    <button class="btn" data-k="ok" style="margin-top:12px">✓ Agregar al plantel</button>`);
+  hydrate(s.body);
+  s.body.querySelector('[data-k]').onclick = () => {
+    const cat = s.body.querySelector('#ap-cat').value;
+    B.set('players/' + rid(), { name: u.name, num: s.body.querySelector('#ap-num').value.replace(/\D/g, '').slice(0, 3), pos: s.body.querySelector('#ap-pos').value, cat, uid: uidv, t: Date.now() }, false);
+    log('Agregó al plantel: ' + u.name + ' (' + cname(cat) + ')'); s.close();
+    toast(u.name + ' ya está en ' + cname(cat) + '.', { ok: true });
+  };
+}
+function link(uidv, pid) {
+  const p = P(pid), u = D.users[uidv]; if (!p || !u) return;
+  const doIt = () => { B.update('players/' + pid, { uid: uidv }); log('Vinculó ' + u.name + ' con ' + p.name); toast('Vinculado: ' + p.name + ' ahora tiene la app.', { ok: true }); };
+  if (p.uid && p.uid !== uidv) ask(p.name + ' ya está vinculado con otra persona. ¿Cambiarlo?', doIt, { yes: 'Sí, cambiar', safe: true });
+  else doIt();
+}
+function linkSheet(uidv) {
+  const u = D.users[uidv]; if (!u) return;
+  const ps = playersByName();
+  const s = sheet(`<div class="name">Vincular a ${esc(u.name)} con un jugador del plantel</div><input id="lk-q" placeholder="Buscar jugador" style="margin:10px 0"><div class="lklist"></div>`);
+  const paint = () => {
+    const q = norm(s.body.querySelector('#lk-q').value);
+    s.body.querySelector('.lklist').innerHTML = ps.filter(p => !q || norm(p.name).includes(q)).map(p => `<button class="card row prow2" data-p="${p.id}">${av(p)}<div class="grow"><div class="name">${esc(p.name)}</div><div class="mute">${esc(cname(p.cat))}${p.uid ? ' · ya tiene la app' : ''}</div></div></button>`).join('') || '<div class="empty">No hay jugadores.</div>';
+    hydrate(s.body);
+  };
+  paint();
+  s.body.querySelector('#lk-q').addEventListener('input', paint);
+  s.body.addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (!b) return; s.close(); link(uidv, b.dataset.p); });
+}
+function personSheet(uidv) {
+  const u = D.users[uidv]; if (!u) return;
+  const p = playerOfUser(uidv), host = !!D.hosts[uidv];
+  const s = sheet(`<div class="center">${uav(u, 'xl')}</div>
+    <label class="lbl">Nombre</label><input id="ps-n" maxlength="40" value="${esc(u.name)}"><div class="err" id="ps-err"></div>
+    <div class="mute" style="margin:8px 0">${host ? '<b class="gold">Anfitrión</b> · ' : ''}${p ? 'En el plantel: <b>' + esc(p.name) + '</b> · ' + esc(cname(p.cat)) : u.np ? 'Marcado como «no es jugador»' : 'Sin plantel'} · visto ${esc(new Date(u.last || u.t).toLocaleDateString('es'))}</div>
+    <button class="btn" data-k="save">Guardar nombre</button>
+    ${p ? '' : '<button class="btn alt" data-k="add" style="margin-top:8px">Agregar al plantel</button><button class="btn alt" data-k="link" style="margin-top:8px">Vincular con jugador existente</button>'}
+    ${u.np ? '<button class="btn alt" data-k="isplayer" style="margin-top:8px">Sí es jugador</button>' : ''}
+    ${uidv !== B.uid ? '<button class="btn alt danger" data-k="del" style="margin-top:8px">Borrar persona</button>' : ''}`);
+  hydrate(s.body);
+  s.body.addEventListener('click', e => {
+    const b = e.target.closest('[data-k]'); if (!b) return;
+    const k = b.dataset.k;
+    if (k === 'save') { const n = s.body.querySelector('#ps-n').value, prob = nameProblem(n); if (prob) { s.body.querySelector('#ps-err').textContent = prob; return; } B.update('users/' + uidv, { name: cleanName(n) }); log('Cambió el nombre de ' + u.name + ' → ' + cleanName(n)); s.close(); }
+    else if (k === 'add') { s.close(); approveSheet(uidv); }
+    else if (k === 'link') { s.close(); linkSheet(uidv); }
+    else if (k === 'isplayer') { B.update('users/' + uidv, { np: B.DEL() }); s.close(); }
+    else if (k === 'del') ask('¿Borrar a ' + u.name + '?', () => {
+      const ops = [['del', 'users/' + uidv]];
+      if (p) ops.push(['update', 'players/' + p.id, { uid: B.DEL() }]);
+      B.batch(ops); log('Borró a la persona ' + u.name); s.close();
+    }, { sub: 'Si vuelve a abrir la app tendrá que registrarse otra vez. Su ficha del plantel se conserva.' });
+  });
+}
+
+// ── Cambios en campos ───────────────────────────────────────────────────────
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'ob-name') obInput();
+  else if (t.id === 'pq') { U.pq = t.value; clearTimeout(t._d); t._d = setTimeout(render, 120); }
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.closest('.sheet') || t.closest('.dlg')) return;
+  const c = U.cat ? C(U.cat) : null;
+  if (t.dataset.res !== undefined && t.dataset.res) {
+    const m = D.matches[t.dataset.res]; if (!m || !R.host) return;
+    B.update('matches/' + t.dataset.res, { res: t.value.trim().replace(/\s*[-–:x]\s*/i, '-') });
+    log('Resultado vs ' + m.rival + ': ' + t.value.trim()); toast('Marcador guardado.', { ok: true });
+  }
+  else if (t.id === 'fee' && c) {
+    const n = +String(t.value).replace(/\D/g, '') || 0;
+    B.update('cats/' + c.id, { fee: n }); t.value = n ? '$' + n.toLocaleString('es-CO') : '';
+    log('Cuota de ' + c.name + ': $' + n.toLocaleString('es-CO'));
+  }
+  else if (t.id === 'ft' && c) {
+    const nf = FT[t.value][0], n = slots(nf).length, lu = {};
+    Object.keys(c.lineup || {}).forEach(k => { if (+k < n) lu[k] = c.lineup[k]; });
+    B.update('cats/' + c.id, { fmt: t.value, form: nf, lineup: lu }); U.slot = null;
+  }
+  else if (t.id === 'fm' && c) { B.update('cats/' + c.id, { form: t.value }); U.slot = null; }
+  else if (t.id === 'lc') { U.lcat = t.value; syncSubs(); render(); }
+  else if (t.id === 'd') { U.date = t.value || today(); syncSubs(); render(); }
+  else if (t.id === 'k') { U.kind = t.value; syncSubs(); render(); }
+  else if (t.id === 'pfil') { U.pfil = t.value; render(); }
+});

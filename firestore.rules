@@ -1,0 +1,123 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Reglas de seguridad de Elite Sport (se pegan en Firebase → Firestore → Reglas).
+//
+//  · Todos los que abren la app entran con una sesión anónima y guardan su
+//    perfil (nombre real y foto). Pueden VER categorías, partidos, entrenos,
+//    alineaciones y uniformes.
+//  · Solo los ANFITRIONES pueden crear, cambiar o borrar cosas, ver todos los
+//    pagos y el registro de cambios.
+//  · Para ser anfitrión hay que escribir el código. El código vive SOLO aquí
+//    (en la ruta hostkeys/CH67/...): nunca aparece en el código de la app.
+//    Para cambiarlo, reemplaza CH67 por el nuevo código en las DOS líneas
+//    marcadas con «CÓDIGO» y publica. (Los anfitriones actuales tendrán que
+//    escribir el código nuevo una vez.)
+// ─────────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isHost() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/hostkeys/CH67/members/$(request.auth.uid)); // CÓDIGO
+    }
+
+    function onlyKeys(keys) {
+      return request.resource.data.keys().hasOnly(keys);
+    }
+
+    // ── Anfitriones ────────────────────────────────────────────────────────
+    match /hostkeys/{key}/members/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isHost());
+      allow list: if isHost();
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && key == 'CH67' // CÓDIGO
+        && onlyKeys(['name', 't']);
+      allow delete: if isHost();
+    }
+
+    // ── Perfiles de las personas (nombre real y foto) ──────────────────────
+    function validUser() {
+      let d = request.resource.data;
+      return onlyKeys(['name', 'photo', 'cat', 't', 'last', 'np'])
+        && d.name is string && d.name.size() >= 3 && d.name.size() <= 50
+        && (!('photo' in d) || d.photo == null || (d.photo is string && d.photo.size() <= 40));
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.auth.uid == uid && validUser()
+        && !('np' in request.resource.data);
+      allow update: if validUser() && (
+        isHost()
+        || (signedIn() && request.auth.uid == uid
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['np']))
+      );
+      allow delete: if isHost();
+    }
+
+    // ── Fotos (cada foto es un documento que no cambia) ────────────────────
+    match /img/{id} {
+      allow get: if signedIn();
+      allow create: if signedIn()
+        && onlyKeys(['d', 'by', 't'])
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.d is string
+        && request.resource.data.d.size() < 900000;
+      allow delete: if isHost() || (signedIn() && resource.data.by == request.auth.uid);
+    }
+
+    // ── Datos del club: todos ven, solo anfitriones cambian ────────────────
+    match /cats/{id} {
+      allow read: if signedIn();
+      allow write: if isHost();
+    }
+    match /players/{id} {
+      allow read: if signedIn();
+      allow write: if isHost();
+    }
+    match /matches/{id} {
+      allow read: if signedIn();
+      allow write: if isHost();
+    }
+    match /rivals/{id} {
+      allow read: if signedIn();
+      allow write: if isHost();
+    }
+    match /train/{id} {
+      allow read: if signedIn();
+      allow write: if isHost();
+    }
+    match /kits/{id} {
+      allow read: if signedIn();
+      allow write: if isHost();
+    }
+    match /att/{id} {
+      allow read: if signedIn();
+      allow write: if isHost();
+    }
+    match /club/{id} {
+      allow read: if signedIn();
+      allow write: if isHost();
+    }
+
+    // ── Pagos: el anfitrión ve todos; cada jugador solo el suyo ────────────
+    match /pay/{pid} {
+      allow get: if isHost()
+        || (signedIn()
+            && get(/databases/$(database)/documents/players/$(pid)).data.get('uid', '') == request.auth.uid);
+      allow list, write: if isHost();
+    }
+
+    // ── Registro de cambios (solo anfitriones) ─────────────────────────────
+    match /log/{id} {
+      allow read, write: if isHost();
+    }
+  }
+}
