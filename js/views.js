@@ -173,10 +173,7 @@ function vLog() {
   if (!L.length) return '';
   return '<h2>Registro</h2><div class="card">' + L.slice(0, 15).map(e => `<div class="logr"><div>${esc(e.x)}</div><div class="mute">${esc(e.w || '')} · ${esc(stamp(e.t))}</div></div>`).join('') + '</div>';
 }
-let DEFER = null;
-addEventListener('beforeinstallprompt', e => { e.preventDefault(); DEFER = e; });
-addEventListener('appinstalled', () => { DEFER = null; });
-export function getDefer() { const d = DEFER; DEFER = null; return d; }
+export function getDefer() { const d = window.__bip; window.__bip = null; return d; }
 export function isApp() { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } }
 function vInstall() {
   if (isApp()) return '';
