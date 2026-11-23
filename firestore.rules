@@ -62,6 +62,17 @@ service cloud.firestore {
       allow delete: if isHost();
     }
 
+    // ── Celular (WhatsApp) del acudiente: lo pone cada persona al registrarse.
+    //    Solo lo ven esa persona y los anfitriones.
+    match /tels/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isHost());
+      allow create, update: if signedIn() && (request.auth.uid == uid || isHost())
+        && onlyKeys(['tel', 't'])
+        && request.resource.data.tel is string
+        && request.resource.data.tel.matches('[0-9]{11,15}');
+      allow delete: if isHost() || (signedIn() && request.auth.uid == uid);
+    }
+
     // ── Fotos (cada foto es un documento que no cambia) ────────────────────
     match /img/{id} {
       allow get: if signedIn();

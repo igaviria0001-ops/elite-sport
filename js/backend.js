@@ -56,11 +56,14 @@ export const REMOVE = (...a) => F.arrayRemove(...a);
 // ── Escrituras ──────────────────────────────────────────────────────────────
 // Firestore guarda primero en el aparato (se ve al instante y sobrevive sin
 // conexión) y luego lo envía. La promesa termina cuando el servidor confirma.
-function track(p, what) {
+function track(p, what, quiet) {
   pending.add(p); emit();
-  p.catch(e => errorFn(e, what)).finally(() => { pending.delete(p); emit(); });
+  p.catch(e => { if (!quiet) errorFn(e, what); }).finally(() => { pending.delete(p); emit(); });
   return p;
 }
+// Para datos opcionales: si el servidor no lo acepta (por ejemplo, reglas sin
+// actualizar), no se muestra error a la persona.
+export function setQuiet(path, data) { const p = track(F.setDoc(ref(path), data, { merge: true }), path, true); p.catch(() => {}); return p; }
 export function set(path, data, merge = true) { return track(F.setDoc(ref(path), data, merge ? { merge: true } : {}), path); }
 export function update(path, data) { return track(F.updateDoc(ref(path), data), path); }
 export function del(path) { return track(F.deleteDoc(ref(path)), path); }

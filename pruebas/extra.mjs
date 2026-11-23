@@ -58,7 +58,7 @@ try {
   const J = await open('x2');
   await J.click('[data-act=ob-photo]'); await J.waitForSelector('.sheet [data-k=gal]');
   const [fc] = await Promise.all([J.waitForEvent('filechooser'), J.click('.sheet [data-k=gal]')]); await fc.setFiles(T + 'face2.jpg');
-  await J.click('.cropper [data-y]'); await J.fill('#ob-name', 'Pedro Páramo'); await J.click('[data-act=ob-save]'); await J.waitForSelector('nav button');
+  await J.click('.cropper [data-y]'); await J.fill('#ob-name', 'Pedro Páramo'); await J.fill('#ob-tel', '3001112233'); await J.click('[data-act=ob-save]'); await J.waitForSelector('nav button');
   await H.bringToFront(); await tab(H, 'personas'); await H.click('.seg [data-id=todas]');
   await H.click('.prow2:has-text("Pedro")'); await H.click('.sheet [data-k=del]'); await H.click('.veil [data-y]');
   await J.bringToFront(); await J.waitForSelector('.onb', { timeout: 5000 });

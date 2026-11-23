@@ -184,6 +184,8 @@ button.ym{cursor:pointer;color:var(--ink)}
 .linkbox select{margin-top:8px}
 
 /* Recordatorio de pago */
+.telc{border:1px solid #2f6b47;background:#0f2419}
+.telc input{flex:1}
 #paybar{margin:0 -16px}
 .paybar{display:flex;align-items:center;gap:10px;width:100%;border:0;background:var(--gold);color:#1d1400;font:800 16px/1.2 var(--cond);letter-spacing:.2px;padding:10px 16px;text-align:left;cursor:pointer}
 .paybar .pi{font-size:20px;animation:nudge 2.4s ease-in-out infinite}

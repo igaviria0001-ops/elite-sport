@@ -6,6 +6,7 @@
 import { LS } from './util.js';
 
 const LOCAL_CODE = 'DEMO';
+const OLD_RULES = new URLSearchParams(location.search).has('viejas'); // pruebas: reglas sin «tels»
 const KEY = 'esl_db', IKEY = 'esl_img_';
 const CAN = (() => { try { localStorage.setItem('esl_t', '1'); localStorage.removeItem('esl_t'); return true; } catch (e) { return false; } })();
 const IMG = new Map(); // fotos en memoria (por si el navegador no deja guardar)
@@ -125,6 +126,11 @@ function canWrite(path, op, next, prev) {
     const npChanged = !same((prev || {}).np, (next || {}).np);
     return s[1] === u && okData && !npChanged;
   }
+  if (s[0] === 'tels' && s.length === 2) {
+    if (OLD_RULES) return false;
+    if (op === 'delete') return isHost(u) || s[1] === u;
+    return (s[1] === u || isHost(u)) && keysOnly(next, ['tel', 't']) && typeof next.tel === 'string' && /^[0-9]{11,15}$/.test(next.tel);
+  }
   if (s[0] === 'img' && s.length === 2) {
     if (op === 'delete') return isHost(u) || (prev && prev.by === u);
     if (prev) return false;
@@ -138,6 +144,7 @@ function canRead(path, list) {
   if (!u) return false;
   if (s[0] === 'hostkeys') return list ? isHost(u) : (s[3] === u || isHost(u));
   if (s[0] === 'users') return true;
+  if (s[0] === 'tels') return !OLD_RULES && (list ? isHost(u) : (s[1] === u || isHost(u)));
   if (s[0] === 'img') return !list;
   if (s[0] === 'log') return isHost(u);
   if (s[0] === 'pay') { if (list) return isHost(u); const pl = DB['players/' + s[1]]; return isHost(u) || !!(pl && pl.uid === u); }

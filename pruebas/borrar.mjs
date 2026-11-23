@@ -17,7 +17,7 @@ async function open(who) { const pg = await ctx.newPage(); pg.on('pageerror', e 
 async function register(pg, name, foto, host) {
   if (host) { await pg.click('.gate .hostkey'); await pg.fill('#hc', 'DEMO'); await pg.click('.hostdlg [data-y]'); await pg.waitForTimeout(300); }
   if (foto) { await pg.click('[data-act=ob-photo]'); await pg.waitForSelector('.sheet [data-k=gal]'); const [fc] = await Promise.all([pg.waitForEvent('filechooser'), pg.click('.sheet [data-k=gal]')]); await fc.setFiles(T + foto); await pg.click('.cropper [data-y]'); }
-  await pg.fill('#ob-name', name); await pg.click('[data-act=ob-save]'); await pg.waitForSelector('nav button');
+  await pg.fill('#ob-name', name); if (await pg.$('#ob-tel')) await pg.fill('#ob-tel', '3001112233'); await pg.click('[data-act=ob-save]'); await pg.waitForSelector('nav button');
 }
 const db = pg => pg.evaluate(() => JSON.parse(localStorage.getItem('esl_db') || '{}'));
 try {
@@ -46,6 +46,7 @@ try {
   ok(!Object.keys(d).some(k => k.startsWith('hostkeys/') && k.endsWith('/' + tuid)), 'ya no es anfitrión');
   ok(!Object.keys(d).some(k => k.startsWith('log/') && (d[k].w === 'Tomás Herrera' || String(d[k].x).includes('Tomás'))), 'el registro no lo nombra');
   ok(!JSON.stringify(d).includes('Tomás'), 'su nombre no aparece en ningún dato del club');
+  ok(!d['tels/' + tuid], 'su celular también se borró');
   ok(Object.keys(d).some(k => k.startsWith('matches/') && d[k].rival === 'Camilo Torres'), 'el partido que creó sigue para el club');
   const jp = Object.keys(d).find(k => k.startsWith('players/') && d[k].uid === juid);
   ok(jp && d['pay/' + jp.split('/')[1]], 'el pago de Santiago que marcó Tomás se conserva (sin su nombre)');
@@ -61,6 +62,7 @@ try {
   ok(true, 'Santiago, borrado por la anfitriona, vuelve a la pantalla de registro');
   d = await db(H);
   ok(!JSON.stringify(d).includes('Santiago'), 'Santiago no aparece en ningún dato (perfil, ficha, pagos ni registro)');
+  ok(!d['tels/' + juid], 'ni su celular');
 } catch (e) { console.error('✗', e.message); process.exitCode = 1; }
 console.log(errs.length ? errs.join('\n') : 'sin errores de consola');
 await b.close(); parar();

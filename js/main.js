@@ -2,7 +2,7 @@
 import * as B from './backend.js';
 import { D, U, R, C, cats, watchCore, watchRole, restoreHost, coreReady, onRedraw, syncSubs, myPlayer, debtOf, payReady, isLate, feeOf, dueDay } from './state.js';
 import { VERSION } from './version.js';
-import { OB } from './onboard.js';
+import { OB, telPrompt } from './onboard.js';
 import { payBar, gateHead, vBoot, vOnboard, vInicio, vCats, vCat, vPartidos, vEntreno, vLista, vPagos, vPersonas, headerRole, headerMe, navHtml } from './views.js';
 import { bindActions, hydrate, sheetRefresh } from './actions.js';
 import { toast, LS, esc, today, monthOnly, money, firstName } from './util.js';
@@ -70,7 +70,7 @@ function draw() {
   putForm(app, f);
   hydrate(document.body);
   if (sheetRefresh) sheetRefresh();
-  if (inApp) setTimeout(payPopup, 900);
+  if (inApp) { setTimeout(payPopup, 900); setTimeout(() => telPrompt(render), 1800); }
 }
 
 // Aviso grande de pago al abrir la app (una vez al día mientras haya pago pendiente).

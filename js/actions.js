@@ -217,6 +217,11 @@ const ACT = {
   pcat: (t, id) => { U.pcat = id; render(); },
   pay: (t, id) => togglePay(id, U.month),
   payhist: (t, id) => payHistSheet(id),
+  savetel: () => {
+    const e = document.getElementById('tc-tel'), t = phoneNorm(e ? e.value : '');
+    if (!t) { const er = document.getElementById('tc-err'); if (er) er.textContent = 'Escribe un celular válido (10 dígitos, por ejemplo 300 123 4567).'; return; }
+    D.myTel = t; e.value = ''; B.setQuiet('tels/' + B.uid, { tel: t, t: Date.now() }); render(); toast('¡Gracias! Número guardado.', { ok: true });
+  },
   remind: () => remindSheet(U.tab === 'pagos' ? U.month : thisMonth()),
   wa1: (t, id) => { const p = P(id); if (p) sendOne(p, U.month); },
   freemonth: () => {
@@ -311,7 +316,7 @@ function phoneSheet(pid, after) {
   s.body.querySelector('[data-k=ok]').onclick = () => {
     const t = phoneNorm(s.body.querySelector('#tel').value);
     if (!t) { s.body.querySelector('#tel-err').textContent = 'Escribe un celular válido (10 dígitos, por ejemplo 300 123 4567).'; return; }
-    B.set('pay/' + pid, { tel: t }); s.close();
+    B.set('pay/' + pid, { tel: t, telT: Date.now() }); s.close();
     if (after) after(t); else toast('Número guardado.', { ok: true });
   };
 }
@@ -338,6 +343,7 @@ function remindSheet(ym) {
       <div class="row" style="margin:10px 0 12px"><span class="grow mute">Plazo de pago: hasta el día</span><select id="rm-due" style="width:86px">${Array.from({ length: 28 }, (_, i) => `<option${i + 1 === dueDay() ? ' selected' : ''}>${i + 1}</option>`).join('')}</select></div>
       ${isFree(ym) ? '<div class="card note">Este mes no se cobra.</div>' : !pend.length ? '<div class="empty">¡Todos están al día! 🎉</div>' : `
       <button class="btn wa" data-k="group">📢 Enviar al grupo del club (${pend.length} ${pend.length === 1 ? 'pendiente' : 'pendientes'})</button>
+      <div class="mute small center" style="margin:6px 0 2px">Elige <b>WhatsApp</b> y luego el <b>grupo</b> del club (sale arriba en tus chats recientes).</div>
       <div class="sh">Mensaje a cada acudiente</div>
       ${next ? `<button class="btn" data-k="one" data-p="${next.id}">▶ Enviar a ${esc(next.name)} <span class="small">(${withTel.length - todo.length + 1} de ${withTel.length})</span></button><div class="mute small center" style="margin:6px 0 2px">Se abre WhatsApp con el mensaje listo: toca Enviar y vuelve aquí para el siguiente.</div>` : withTel.length ? '<div class="okline">✓ Ya se le recordó a todos los que tienen número.</div>' : '<div class="mute small">Agrega el WhatsApp de cada acudiente para mandarle su mensaje.</div>'}
       <div class="rlist">${pend.map(row).join('')}</div>`}
@@ -397,7 +403,7 @@ function playerSheet(pid) {
       const ops = [['update', 'players/' + pid, upd]];
       const tv = s.body.querySelector('#ep-tel').value.trim(), tn = phoneNorm(tv);
       if (tv && !tn) { toast('El WhatsApp no es válido: escribe 10 dígitos, por ejemplo 300 123 4567.'); return; }
-      if (tn !== telOf(pid)) ops.push(['set', 'pay/' + pid, { tel: tn || B.DEL() }]);
+      if (tn !== telOf(pid)) ops.push(['set', 'pay/' + pid, tn ? { tel: tn, telT: Date.now() } : { tel: B.DEL(), telT: Date.now() }]);
       if (cat !== p.cat) { const oc = C(p.cat); if (oc) Object.keys(oc.lineup || {}).forEach(i => { if (oc.lineup[i] === pid) ops.push(['update', 'cats/' + oc.id, { ['lineup.' + i]: B.DEL() }]); }); }
       B.batch(ops); log('Jugador editado: ' + upd.name); s.close(); toast('Cambios guardados.', { ok: true });
     }
@@ -413,7 +419,7 @@ function approveSheet(uidv) {
   const s = sheet(`<div class="row">${uav(u, 'lg')}<div class="grow"><div class="name">${esc(u.name)}</div><div class="mute">Agregar al plantel</div></div></div>
     <label class="lbl">Categoría</label><select id="ap-cat">${cats().map(c => `<option value="${c.id}"${c.id === u.cat ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
     <div class="grid" style="margin-top:8px"><input id="ap-num" inputmode="numeric" maxlength="3" placeholder="Número (opcional)"><select id="ap-pos">${POS.map(x => `<option${x === 'Medio' ? ' selected' : ''}>${x}</option>`).join('')}</select></div>
-    <input id="ap-tel" type="tel" inputmode="tel" placeholder="WhatsApp del acudiente (opcional)">
+    <input id="ap-tel" type="tel" inputmode="tel" placeholder="WhatsApp del acudiente (opcional)" value="${esc(phoneShow((D.tels[uidv] || {}).tel || ''))}">
     <button class="btn" data-k="ok" style="margin-top:12px">✓ Agregar al plantel</button>`);
   hydrate(s.body);
   s.body.querySelector('[data-k]').onclick = () => {
@@ -422,7 +428,7 @@ function approveSheet(uidv) {
     if (tv && !tn) { toast('El WhatsApp no es válido: escribe 10 dígitos, por ejemplo 300 123 4567.'); return; }
     const pid = rid();
     B.set('players/' + pid, { name: u.name, num: s.body.querySelector('#ap-num').value.replace(/\D/g, '').slice(0, 3), pos: s.body.querySelector('#ap-pos').value, cat, uid: uidv, t: Date.now() }, false);
-    if (tn) B.set('pay/' + pid, { tel: tn });
+    if (tn && tn !== (D.tels[uidv] || {}).tel) B.set('pay/' + pid, { tel: tn, telT: Date.now() });
     log('Agregó al plantel: ' + u.name + ' (' + cname(cat) + ')'); s.close();
     toast(u.name + ' ya está en ' + cname(cat) + '.', { ok: true });
   };

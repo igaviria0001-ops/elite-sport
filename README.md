@@ -56,6 +56,8 @@ pruebas/                pruebas automáticas
 | Colección | Qué guarda | Quién la ve | Quién la cambia |
 |---|---|---|---|
 | `users` | perfil de cada persona (nombre, foto, categoría pedida) | todos | cada uno el suyo; anfitriones |
+| `tels` | WhatsApp del acudiente que paga | cada uno el suyo; anfitriones | cada uno el suyo; anfitriones |
+| `club` | plazo de pago, meses sin cobro, mensaje de recordatorio | todos | anfitriones |
 | `cats`, `players`, `matches`, `rivals`, `train`, `kits`, `att` | datos del club | todos | anfitriones |
 | `pay` | pagos por jugador y mes | anfitriones; cada jugador el suyo | anfitriones |
 | `log` | registro de cambios | anfitriones | anfitriones |

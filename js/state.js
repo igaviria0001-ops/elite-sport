@@ -5,7 +5,8 @@ import { LS, today, thisMonth, byName, norm, ymd, addMonth, dayNum } from './uti
 // Datos que llegan del servidor (siempre al día).
 export const D = {
   cats: {}, players: {}, matches: {}, rivals: {}, train: {}, kits: {}, users: {}, club: {},
-  pay: {}, log: {}, hosts: {}, att: null, attCat: {}, myPay: null, payLoaded: false, myPayLoaded: false
+  pay: {}, log: {}, hosts: {}, att: null, attCat: {}, myPay: null, payLoaded: false, myPayLoaded: false,
+  tels: {}, myTel: '', myTelOk: false // celulares de acudientes (myTelOk: el servidor deja leerlo)
 };
 export const loaded = new Set();
 
@@ -48,7 +49,15 @@ export const joinMonth = p => (p && p.t ? ymd(new Date(p.t)).slice(0, 7) : '');
 // Pagos: plazo (día del mes), meses que no se cobran y recordatorios enviados.
 export const dueDay = () => Math.min(28, Math.max(1, Math.round(+(D.club && D.club.due) || 5)));
 export const isFree = ym => !!(D.club && D.club.free && D.club.free[ym]);
-export const telOf = pid => ((R.host ? D.pay[pid] : D.myPay) || {}).tel || '';
+// Celular del acudiente: gana el más reciente entre el que puso la persona al
+// registrarse (tels/{uid}) y el que puso un anfitrión en la ficha (pay/{id}.tel).
+export function telInfo(pid) {
+  if (!R.host) return { tel: D.myTel || ((D.myPay || {}).tel) || '', from: 'yo' };
+  const p = D.players[pid] || {}, a = D.pay[pid] || {}, b = (p.uid && D.tels[p.uid]) || {};
+  if (a.tel && (!b.tel || (a.telT || 0) >= (b.t || 0))) return { tel: a.tel, from: 'anfitrion' };
+  return { tel: b.tel || '', from: b.tel ? 'acudiente' : '' };
+}
+export const telOf = pid => telInfo(pid).tel;
 export const remOf = (pid, ym) => (((D.pay[pid] || {}).rem) || {})[ym] || 0;
 export function debtOf(p) { // meses que debe, desde que entró al club
   if (!p) return [];
@@ -83,6 +92,7 @@ export async function eraseOps(uidv, { ficha = true } = {}) {
   if (u.name) names.add(u.name);
   const mine = list(D.players).filter(p => p.uid === uidv);
   const ops = [['del', 'users/' + uidv]];
+  if (D.tels[uidv] || (uidv === B.uid && D.myTel)) ops.push(['del', 'tels/' + uidv]);
   if (u.photo) ops.push(['del', 'img/' + u.photo]);
   const gone = new Set();
   for (const p of mine) {
@@ -123,6 +133,7 @@ export function watchCore() {
   for (const c of CORE) sub(c, 1, () => B.watchCol(c, d => { D[c] = d; loaded.add(c); if (c === 'players') syncSubs(); redraw(); }));
   // Perfil propio: se espera la respuesta del servidor antes de pedir el registro.
   sub('club', 1, () => B.watchDoc('club/main', d => { D.club = d || {}; redraw(); }));
+  sub('mytel', 1, () => B.watchDoc('tels/' + B.uid, d => { D.myTel = (d && d.tel) || ''; D.myTelOk = true; redraw(); }, () => { D.myTelOk = false; redraw(); }));
   sub('me', 1, () => B.watchDoc('users/' + B.uid, (d, m) => {
     if (d) { R.profile = d; B.me.set(d); R.meReady = true; }
     else if (!m.fromCache || !navigator.onLine) { if (!m.fromCache) { R.profile = null; B.me.set(null); } R.meReady = true; }
@@ -161,10 +172,11 @@ export function syncSubs() {
     sub('pay', 1, () => B.watchCol('pay', d => { D.pay = d; D.payLoaded = true; redraw(); }));
     sub('log', 1, () => B.watchCol('log', d => { D.log = d; redraw(); }, [['orderBy', 't', 'desc'], ['limit', 25]]));
     sub('hosts', R.key, () => B.watchCol(`hostkeys/${R.key}/members`, d => { D.hosts = d; redraw(); }));
+    sub('tels', 1, () => B.watchCol('tels', d => { D.tels = d; redraw(); }, null, () => { D.tels = {}; }));
     unsub('mypay'); unsub('attcat');
   } else {
-    unsub('pay'); unsub('log'); unsub('hosts');
-    D.pay = {}; D.log = {}; D.hosts = {}; D.payLoaded = false;
+    unsub('pay'); unsub('log'); unsub('hosts'); unsub('tels');
+    D.pay = {}; D.log = {}; D.hosts = {}; D.tels = {}; D.payLoaded = false;
     const mp = myPlayer();
     if (mp) {
       sub('mypay', mp.id, () => { D.myPayLoaded = false; return B.watchDoc('pay/' + mp.id, d => { D.myPay = d; D.myPayLoaded = true; redraw(); }, () => { D.myPay = null; D.myPayLoaded = true; redraw(); }); });

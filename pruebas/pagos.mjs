@@ -30,12 +30,17 @@ try {
   const J = await open('pj', '2026-12-02');
   await J.click('[data-act=ob-photo]'); await J.waitForSelector('.sheet [data-k=gal]');
   const [fc] = await Promise.all([J.waitForEvent('filechooser'), J.click('.sheet [data-k=gal]')]); await fc.setFiles(T + 'face2.jpg'); await J.click('.cropper [data-y]');
-  await J.fill('#ob-name', 'Santiago Gómez'); await J.selectOption('#ob-cat', { label: 'Sub-13' }); await J.click('[data-act=ob-save]'); await J.waitForSelector('nav button');
+  await J.fill('#ob-name', 'Santiago Gómez'); await J.selectOption('#ob-cat', { label: 'Sub-13' });
+  ok(!!(await J.$('#ob-tel')), 'el registro pide el celular del acudiente');
+  await J.fill('#ob-tel', '320 555 6677'); await J.click('[data-act=ob-save]'); await J.waitForSelector('nav button');
   ok(!(await J.$('.paybar')), 'antes de estar en el plantel no hay aviso de pago');
 
   // El anfitrión lo aprueba con el WhatsApp del acudiente
-  await tab(H, 'personas'); await H.click('.card:has-text("Santiago") [data-act=approve]');
-  await H.fill('#ap-tel', '300 123 4567'); await H.click('.sheet [data-k=ok]'); await H.waitForTimeout(250);
+  await tab(H, 'personas');
+  ok((await H.textContent('.card:has-text("Santiago")')).includes('+57 320 555 6677'), 'el anfitrión ve el celular que puso el acudiente al registrarse');
+  await H.click('.card:has-text("Santiago") [data-act=approve]');
+  ok((await H.inputValue('#ap-tel')) === '+57 320 555 6677', 'al aprobarlo, el celular ya viene puesto');
+  await H.click('.sheet [data-k=ok]'); await H.waitForTimeout(250);
   await H.evaluate(async () => { const B = await import('./js/backend.js'); const { D } = await import('./js/state.js'); const id = Object.keys(D.players).find(k => D.players[k].name === 'Santiago Gómez'); await B.update('players/' + id, { t: Date.parse('2026-12-01T12:00:00') }); });
 
   // Jugador: franja visible en todas las pantallas + aviso grande una vez al día
@@ -61,7 +66,7 @@ try {
   await H.waitForTimeout(450); await H.screenshot({ path: '/tmp/elite-capturas-pago-recordar.png' });
   await H.click('.sheet button[data-k=one]:has-text("Enviar a Santiago")');
   let o = await opened(H);
-  ok(o[0] && o[0].startsWith('https://wa.me/573001234567?text='), 'abre WhatsApp del acudiente: ' + o[0].slice(0, 40));
+  ok(o[0] && o[0].startsWith('https://wa.me/573205556677?text='), 'abre el WhatsApp que puso el acudiente: ' + o[0].slice(0, 40));
   ok(o[0].includes('*Santiago Gómez*') && o[0].includes('diciembre') && o[0].includes('$50.000') && o[0].includes('5 de diciembre'), 'mensaje: ' + o[0].split('text=')[1]);
   await wait(H, () => document.querySelector('.sheet') && document.querySelector('.sheet').textContent.includes('recordado'));
   ok(true, 'queda marcado «✓ recordado» y avanza al siguiente');
@@ -102,6 +107,29 @@ try {
   await wait(H9, () => document.querySelector('.remc') && !document.querySelector('.remc.late'));
   ok(true, 'con plazo hasta el 10, el día 9 ya no aparece como vencido');
   await H9.close();
+
+  // El anfitrión puede cambiar el número (gana el más reciente)
+  await tab(H, 'cats'); await H.click('.cat'); await H.click('.prow2:has-text("Santiago")'); await H.fill('#ep-tel', '311 000 1122'); await H.click('.sheet [data-k=save]'); await H.waitForTimeout(300);
+  await spy(H); await tab(H, 'pagos'); await H.click('.payr:has-text("Santiago") .wab'); o = await opened(H);
+  ok(o[0].startsWith('https://wa.me/573110001122'), 'si el anfitrión lo cambia, se usa el número nuevo');
+
+  // Quien se registró antes (reglas viejas, sin celular) ve el pedido del número
+  const K = await open('pk&viejas', '2026-12-02');
+  await K.fill('#ob-name', 'Laura Méndez');
+  ok(!(await K.$('#ob-tel')), 'con las reglas viejas el registro no pide el celular (no falla)');
+  await K.click('[data-act=ob-photo]'); await K.waitForSelector('.sheet [data-k=gal]');
+  const [fk] = await Promise.all([K.waitForEvent('filechooser'), K.click('.sheet [data-k=gal]')]); await fk.setFiles(T + 'face3.jpg'); await K.click('.cropper [data-y]');
+  await K.click('[data-act=ob-save]'); await K.waitForSelector('nav button'); await K.close();
+  const K2 = await open('pk', '2026-12-02'); await tab(K2, 'inicio');
+  await K2.waitForSelector('.telc', { timeout: 5000 });
+  ok(true, 'ya con las reglas nuevas, en Inicio le aparece «Falta el celular del acudiente»');
+  await K2.waitForSelector('.sheet #tp-tel', { timeout: 5000 });
+  ok(true, 'y una ventana para escribirlo');
+  await K2.fill('#tp-tel', '315 222 3344'); await K2.click('.sheet [data-k=ok]');
+  await wait(K2, () => !document.querySelector('.telc'));
+  ok(true, 'al guardarlo, el aviso desaparece');
+  await tab(H, 'personas'); await H.click('.seg [data-id=nuevas]');
+  ok((await H.textContent('.card:has-text("Laura")')).includes('+57 315 222 3344'), 'el anfitrión ve el número de Laura');
 
   // Mes sin cobro
   await tab(H, 'pagos'); await H.click('.foot [data-act=freemonth]'); await H.click('.veil [data-y]');

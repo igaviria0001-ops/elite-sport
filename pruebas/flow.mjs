@@ -45,6 +45,7 @@ async function pickPhoto(pg, file, trigger) {
 async function register(pg, name, file, cat) {
   if (file) await pickPhoto(pg, file, '[data-act=ob-photo]');
   await pg.fill('#ob-name', name);
+  if (await pg.$('#ob-tel')) await pg.fill('#ob-tel', '300 111 2233');
   if (cat) await pg.selectOption('#ob-cat', { label: cat });
   await pg.click('[data-act=ob-save]');
   await pg.waitForSelector('nav button');
@@ -70,6 +71,11 @@ try {
     ok(e.includes(why), `rechaza "${bad}" → ${e}`);
   }
   await H.fill('#ob-name', 'Carlos Ramírez');
+  await H.click('[data-act=ob-save]');
+  ok((await H.textContent('#ob-terr')).includes('celular'), 'sin celular del acudiente no deja entrar');
+  await H.fill('#ob-tel', '12345'); await H.click('[data-act=ob-save]');
+  ok((await H.textContent('#ob-terr')).includes('Revisa el número'), 'celular inválido: lo rechaza');
+  await H.fill('#ob-tel', '300 111 2233');
   await H.click('[data-act=ob-save]');
   ok((await H.textContent('.toast')).includes('foto'), 'sin foto no deja entrar (jugador)');
   await register(H, 'carlos ramírez', 'face1.jpg');

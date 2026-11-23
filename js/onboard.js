@@ -1,9 +1,9 @@
 // Registro (foto + nombre real), recorte de foto, acceso de anfitrión y perfil.
 import * as B from './backend.js';
 import { R, D, cats, myPlayer, becomeHost, stopHost, cname, eraseOps } from './state.js';
-import { LS, esc, loadImage, pickFiles, nameProblem, cleanName, toast, sheet, ask, vibrate } from './util.js';
+import { LS, esc, loadImage, pickFiles, nameProblem, cleanName, toast, sheet, ask, vibrate, phoneNorm, phoneShow } from './util.js';
 
-export const OB = { photo: '', name: '', cat: '' };
+export const OB = { photo: '', name: '', cat: '', tel: '' };
 
 // ── Recorte circular de la foto (arrastrar y acercar) ───────────────────────
 export function cropImage(file, size = 320) {
@@ -84,6 +84,13 @@ export async function obSave(render) {
   OB.name = el ? el.value : OB.name; OB.cat = sel ? sel.value : '';
   const prob = nameProblem(OB.name);
   if (prob) { if (er) er.textContent = prob; el && el.focus(); vibrate(30); return; }
+  const te = document.getElementById('ob-tel'), terr = document.getElementById('ob-terr');
+  let tel = '';
+  if (te) {
+    OB.tel = te.value; tel = phoneNorm(te.value);
+    if (!tel) { if (terr) terr.textContent = te.value.trim() ? 'Revisa el número: escribe el celular de 10 dígitos (por ejemplo 300 123 4567).' : 'Escribe el celular del acudiente que paga la cuota.'; te.focus(); vibrate(30); return; }
+    if (terr) terr.textContent = '';
+  }
   if (!OB.photo && !R.host) { toast('Agrega una foto del jugador para entrar.'); vibrate(30); return; }
   const name = cleanName(OB.name);
   const prof = { name, t: Date.now(), last: Date.now() };
@@ -91,9 +98,30 @@ export async function obSave(render) {
   if (OB.cat) prof.cat = OB.cat;
   R.profile = prof; B.me.set(prof); R.meReady = true;
   B.set('users/' + B.uid, prof, false);
-  OB.photo = ''; OB.name = ''; OB.cat = '';
+  if (tel) { D.myTel = tel; B.setQuiet('tels/' + B.uid, { tel, t: Date.now() }); }
+  OB.photo = ''; OB.name = ''; OB.cat = ''; OB.tel = '';
   render();
   toast('¡Listo, ' + name.split(' ')[0] + '! Tu registro quedó guardado.', { ok: true });
+}
+
+// ── Pedir el celular a quien ya estaba registrado sin él ────────────────────
+export function telPrompt(render) {
+  if (R.host || !R.profile || !D.myTelOk || D.myTel || document.hidden || document.querySelector('.veil')) return;
+  const last = LS.get('telask', 0);
+  if (Date.now() - last < 3 * 86400000) return;
+  LS.set('telask', Date.now());
+  const s = sheet(`<div class="center" style="font-size:40px">📱</div><div class="name center" style="font-size:19px">Celular del acudiente</div>
+    <div class="mute center" style="margin:6px 0 12px">Escribe el WhatsApp del papá, mamá o acudiente que paga la cuota (o el tuyo, si pagas tú). Así el club te recuerda los pagos. Solo lo ven los anfitriones.</div>
+    <input id="tp-tel" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="Ej. 300 123 4567"><div class="err" id="tp-err"></div>
+    <button class="btn" data-k="ok" style="margin-top:12px">Guardar</button><button class="btn alt" data-k="no" style="margin-top:8px">Ahora no</button>`);
+  s.body.addEventListener('click', e => {
+    const b = e.target.closest('[data-k]'); if (!b) return;
+    if (b.dataset.k === 'no') return s.close();
+    const t = phoneNorm(s.body.querySelector('#tp-tel').value);
+    if (!t) { s.body.querySelector('#tp-err').textContent = 'Escribe un celular válido (10 dígitos, por ejemplo 300 123 4567).'; return; }
+    D.myTel = t; B.setQuiet('tels/' + B.uid, { tel: t, t: Date.now() }); s.close(); render();
+    toast('¡Gracias! Número guardado.', { ok: true });
+  });
 }
 
 // ── Acceso de anfitrión (código con límite de intentos) ─────────────────────
@@ -155,6 +183,7 @@ export function profileSheet(render) {
   let newPhoto = '';
   const html = () => `<div class="center"><button class="pp has big" data-k="photo" aria-label="Cambiar foto">${newPhoto ? `<img src="${newPhoto}" alt="">` : p.photo ? `<img src="${B.imgCached(p.photo) || ''}" data-img="${esc(p.photo)}" alt="">` : '<span class="cam">📷</span>'}</button><div class="mute small">Toca la foto para cambiarla</div></div>
     <label class="lbl" for="pf-name">Nombre y apellido</label><input id="pf-name" maxlength="40" autocapitalize="words" value="${esc(p.name || '')}"><div class="err" id="pf-err"></div>
+    ${!R.host && D.myTelOk ? `<label class="lbl" for="pf-tel">Celular del acudiente (WhatsApp)</label><input id="pf-tel" type="tel" inputmode="tel" maxlength="20" placeholder="Ej. 300 123 4567" value="${esc(phoneShow(D.myTel))}"><div class="err" id="pf-terr"></div>` : ''}
     ${mp ? `<div class="mute" style="margin-top:8px">En el plantel: <b>${esc(mp.name)}</b> · ${esc(cname(mp.cat) || 'sin categoría')}</div>` : !R.host && cats().length ? `<label class="lbl" for="pf-cat">Categoría</label><select id="pf-cat"><option value="">Sin elegir</option>${cats().map(c => `<option value="${c.id}"${c.id === p.cat ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select>` : ''}
     <button class="btn" data-k="save" style="margin-top:14px">Guardar cambios</button>
     <div class="pfrole">${R.host ? '<div><b class="gold">Eres anfitrión</b> en este aparato.</div><button class="btn alt sm" data-k="backup" style="margin:8px 0 2px">📦 Descargar copia de seguridad</button><button class="lnk" data-k="leave">Dejar de ser anfitrión</button><button class="lnk" data-k="wipe">Borrar mi cuenta del club</button>' : '<button class="lnk" data-k="host">Acceso de anfitrión</button><button class="lnk" data-k="wipeinfo">Borrar mi cuenta</button>'}</div>
@@ -171,7 +200,7 @@ export function profileSheet(render) {
       b.disabled = true; b.textContent = 'Preparando…';
       try {
         const cols = ['cats', 'players', 'matches', 'rivals', 'train', 'kits', 'users', 'att', 'pay', 'log'], data = { app: 'Elite Independiente', fecha: new Date().toISOString() };
-        for (const c of cols) data[c] = await B.getAll(c);
+        for (const c of cols.concat(['club', 'tels'])) { try { data[c] = await B.getAll(c); } catch (e) {} }
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
         a.download = 'elite-independiente-copia-' + new Date().toISOString().slice(0, 10) + '.json';
@@ -209,6 +238,12 @@ export function profileSheet(render) {
       const nm = s.body.querySelector('#pf-name').value, er = s.body.querySelector('#pf-err'), pc = s.body.querySelector('#pf-cat');
       const prob = nameProblem(nm);
       if (prob) { er.textContent = prob; return; }
+      const pt = s.body.querySelector('#pf-tel');
+      if (pt) {
+        const tn = phoneNorm(pt.value);
+        if (!tn) { s.body.querySelector('#pf-terr').textContent = 'Escribe un celular válido (10 dígitos, por ejemplo 300 123 4567).'; return; }
+        if (tn !== D.myTel) { D.myTel = tn; B.setQuiet('tels/' + B.uid, { tel: tn, t: Date.now() }); }
+      }
       const upd = Object.assign({}, R.profile, { name: cleanName(nm) });
       if (newPhoto) upd.photo = B.putImage(newPhoto);
       if (pc) { if (pc.value) upd.cat = pc.value; else delete upd.cat; }

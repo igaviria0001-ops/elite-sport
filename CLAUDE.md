@@ -6,7 +6,7 @@ App web del club Elite Independiente (aparte de GameHub). Vive en https://igavir
 
 Los celulares se actualizan solos (revisan `version.json`) y, durante unos minutos, conviven aparatos con la versión vieja y la nueva. Por eso:
 
-1. **Datos del servidor (Firestore):** no renombrar ni borrar colecciones ni campos (`users`, `cats`, `players`, `matches`, `rivals`, `train`, `kits`, `att`, `pay`, `log`, `img`, `hostkeys/{código}/members`). Lo nuevo se agrega como campo opcional con valor por defecto. Si de verdad hay que cambiar la forma de algo, el código nuevo debe leer el formato viejo y el nuevo.
+1. **Datos del servidor (Firestore):** no renombrar ni borrar colecciones ni campos (`users`, `tels`, `cats`, `players`, `matches`, `rivals`, `train`, `kits`, `att`, `pay`, `log`, `img`, `club`, `hostkeys/{código}/members`). Lo nuevo se agrega como campo opcional con valor por defecto. Si de verdad hay que cambiar la forma de algo, el código nuevo debe leer el formato viejo y el nuevo.
 2. **Sesión:** no tocar `initializeAuth` ni su persistencia (IndexedDB + localStorage), el nombre de la app de Firebase (`[DEFAULT]`) ni `js/config.js`. Cambiar eso cierra la sesión de todos.
 3. **Datos del aparato:** no renombrar las claves `es_*` de localStorage (`hk` anfitrión, `me` perfil, `lock` intentos, `tab`, `fcat`, `dv`, `upd`, `paypop` aviso de pago del día) ni la base IndexedDB `es-img`. Si hace falta cambiarlas, subir `DATA_V` en `js/main.js` y escribir la migración en `migrate()`.
 4. **Reglas (`firestore.rules`):** deben seguir funcionando con la versión anterior de la app. Claude no puede publicarlas: hay que darle a Ignacio el texto completo para pegar en Firebase → Firestore → Reglas → Publicar, y avisarle.
@@ -14,11 +14,12 @@ Los celulares se actualizan solos (revisan `version.json`) y, durante unos minut
 
 ## Pagos y recordatorios
 
-- `pay/{jugador}`: `m.{AAAA-MM}` = pago registrado `{t, by, v}`; `tel` = WhatsApp del acudiente (solo lo ven anfitriones y el propio jugador); `rem.{AAAA-MM}` = cuándo se le recordó por WhatsApp.
+- `tels/{uid}`: `{tel, t}` WhatsApp del acudiente que la persona puso al registrarse (o después en su perfil). Solo lo ven ella y los anfitriones. Necesita las reglas del 23 nov 2026 (bloque `tels`); con reglas viejas la app no lo pide y no falla (`B.setQuiet`, `D.myTelOk`).
+- `pay/{jugador}`: `m.{AAAA-MM}` = pago registrado `{t, by, v}`; `tel` + `telT` = WhatsApp puesto o cambiado por un anfitrión (entre este y `tels/{uid}` gana el más reciente, ver `telInfo`); `rem.{AAAA-MM}` = cuándo se le recordó por WhatsApp.
 - `club/main`: `due` = día límite de pago (1–28, por defecto 5), `free.{AAAA-MM}` = mes que no se cobra, `msg` = mensaje de recordatorio propio (`{jugador}`, `{mes}`, `{valor}`, `{fecha}`).
 - WhatsApp no deja enviar mensajes sin que alguien toque «Enviar» (salvo con la API de WhatsApp Business, que es de pago y necesita servidor): la app abre `wa.me` con el mensaje listo.
 - El jugador que debe ve una franja en todas las pantallas y un aviso grande una vez al día; desaparece al registrar el pago.
-- En pruebas (`?who=…`) se puede simular la fecha con `&hoy=AAAA-MM-DD`.
+- En pruebas (`?who=…`) se puede simular la fecha con `&hoy=AAAA-MM-DD` y las reglas viejas (sin `tels`) con `&viejas`.
 
 ## Cómo publicar un cambio
 

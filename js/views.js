@@ -115,6 +115,7 @@ export function vOnboard() {
     <label class="lbl" for="ob-name">${R.host ? 'Tu nombre y apellido' : 'Nombre y apellido del jugador'}</label>
     <input id="ob-name" data-keep autocomplete="name" autocapitalize="words" maxlength="40" placeholder="Ej. Santiago Gómez" value="${esc(OB.name || '')}">
     <div class="err" id="ob-err" aria-live="polite"></div>
+    ${D.myTelOk && !R.host ? `<label class="lbl" for="ob-tel">Celular del acudiente (WhatsApp)</label><input id="ob-tel" data-keep type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="Ej. 300 123 4567" value="${esc(OB.tel || '')}"><div class="mute small" style="margin-top:4px">Del papá, mamá o acudiente que paga la cuota (o del jugador, si paga él). Solo lo ven los anfitriones, para recordar los pagos.</div><div class="err" id="ob-terr" aria-live="polite"></div>` : ''}
     ${cs.length && !R.host ? `<label class="lbl" for="ob-cat">Categoría</label><select id="ob-cat" data-keep>${catOpts(OB.cat || '', '¿En qué categoría juega?')}</select>` : ''}
     <button class="btn" data-act="ob-save" style="margin-top:14px">Entrar</button>
     <div class="mute small center" style="margin-top:10px">Los anfitriones del club verán tu nombre y tu foto para identificarte. Se guarda en este celular: no tendrás que volver a registrarte.</div>
@@ -162,6 +163,7 @@ function catGrid() {
 export function vInicio() {
   let h = localBanner();
   const mp = myPlayer(), fc = R.host ? '' : mp ? mp.cat : (R.profile.cat && D.cats[R.profile.cat] ? R.profile.cat : '');
+  if (!R.host && D.myTelOk && !D.myTel) h += `<div class="card telc"><div class="name">📱 Falta el celular del acudiente</div><div class="mute small">Del papá, mamá o acudiente que paga la cuota, para avisarle por WhatsApp. Solo lo ven los anfitriones.</div><div class="row" style="margin-top:10px"><input id="tc-tel" data-keep type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="Ej. 300 123 4567" aria-label="Celular del acudiente"><button class="btn sm" data-act="savetel">Guardar</button></div><div class="err" id="tc-err"></div></div>`;
   if (!R.host) {
     if (mp) h += ficha(mp);
     else h += `<div class="card hero"><div class="big">¡Hola, ${esc(firstName(R.profile.name))}!</div><small>Tu perfil quedó registrado. El anfitrión te agregará al plantel de tu categoría.</small></div>`;
@@ -407,7 +409,7 @@ export function vPersonas() {
     if (!pend.length) return h + empty('No hay personas nuevas. Cuando alguien se registre aparecerá aquí.');
     pend.forEach(u => {
       const sug = nameMatch(u.name);
-      h += `<div class="card"><div class="row">${uav(u, 'lg')}<div class="grow"><div class="name">${esc(u.name)}</div><div class="mute">Se registró ${esc(ago(u.t))}${u.cat && cname(u.cat) ? ' · Pidió ' + esc(cname(u.cat)) : ''}</div></div></div>
+      h += `<div class="card"><div class="row">${uav(u, 'lg')}<div class="grow"><div class="name">${esc(u.name)}</div><div class="mute">Se registró ${esc(ago(u.t))}${u.cat && cname(u.cat) ? ' · Pidió ' + esc(cname(u.cat)) : ''}${D.tels[u.id] ? ' · 📱 ' + esc(phoneShow(D.tels[u.id].tel)) : ''}</div></div></div>
       ${sug ? `<div class="sugg">¿Es <b>${esc(sug.name)}</b> (${esc(cname(sug.cat))}) del plantel? <button class="btn sm" data-act="linkto" data-id="${u.id}" data-p="${sug.id}">Vincular</button></div>` : ''}
       <div class="chips"><button class="P on wide" data-act="approve" data-id="${u.id}">✓ Agregar al plantel</button><button data-act="linkuser" data-id="${u.id}">Vincular…</button><button data-act="notplayer" data-id="${u.id}">No es jugador</button></div></div>`;
     });
