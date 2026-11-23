@@ -2,7 +2,7 @@
 // (Firestore) y la pantalla se actualiza sola cuando llega el cambio.
 import * as B from './backend.js';
 import { D, U, R, cats, C, P, cname, players, playersByName, myName, userOf, photoOf, pendingUsers, feeOf, paidOf, attId, syncSubs, stopHost, playerOfUser, list, eraseOps, dueDay, isFree, telOf, remOf } from './state.js';
-import { FT, POS, TYPES, slots, OBM, yearGrid, getDefer, isApp, av, uav, pendingPay, kitChoosers } from './views.js';
+import { FT, POS, TYPES, slots, OBM, yearGrid, getDefer, isApp, av, uav, pendingPay } from './views.js';
 import { OB, choosePhoto, obInput, obSave, hostModal, profileSheet } from './onboard.js';
 import { LS, esc, rid, today, thisMonth, addMonth, monthName, monthOnly, cap, money, fmtShort, phoneNorm, phoneShow, waLink, slug, cleanName, nameProblem, shrink, pickFiles, toast, ask, sheet, viewImg, vibrate, byName, norm, ymd, parseDay } from './util.js';
 
@@ -145,13 +145,13 @@ const ACT = {
     U.editMatch = null; OBM.crest = ''; clear('mr', 'mp', 'mt', 'mk'); render();
   },
   editmatch: (t, id) => { U.editMatch = id; OBM.crest = ''; ['mr', 'mp', 'md', 'mt', 'mc', 'mk'].forEach(k => { const e = document.getElementById(k); if (e) e.removeAttribute('id'); }); render(); scrollTo({ top: 0, behavior: 'smooth' }); },
-  canceledit: () => { U.editMatch = null; U.editTrain = null; OBM.crest = ''; ['mr', 'mp', 'md', 'mt', 'mc', 'mk', 'td', 'tt', 'tp', 'tc', 'ty', 'tn'].forEach(k => { const e = document.getElementById(k); if (e) e.removeAttribute('id'); }); render(); },
+  canceledit: () => { U.editMatch = null; U.editTrain = null; OBM.crest = ''; ['mr', 'mp', 'md', 'mt', 'mc', 'mk', 'td', 'tt', 'tp', 'tc', 'ty', 'tk', 'tn'].forEach(k => { const e = document.getElementById(k); if (e) e.removeAttribute('id'); }); render(); },
   delmatch: (t, id) => { const m = D.matches[id]; ask('¿Borrar el partido vs ' + (m ? m.rival : '') + '?', () => { B.del('matches/' + id); log('Partido borrado: vs ' + (m ? m.rival : '')); if (U.editMatch === id) U.editMatch = null; }); },
 
   // Entrenamientos
   savetrain: () => {
     if (!hostOnly()) return;
-    const x = { date: val('td') || today(), time: val('tt'), place: val('tp'), cat: val('tc'), type: val('ty') || 'Técnico', note: val('tn') };
+    const x = { date: val('td') || today(), time: val('tt'), place: val('tp'), cat: val('tc'), type: val('ty') || 'Técnico', kit: val('tk'), note: val('tn') };
     if (U.editTrain && D.train[U.editTrain]) { B.update('train/' + U.editTrain, x); log('Entrenamiento editado (' + x.date + ')'); toast('Entrenamiento actualizado.', { ok: true }); }
     else {
       const n = Math.max(1, Math.min(12, +val('tr') || 1)), ops = [];
@@ -161,7 +161,7 @@ const ACT = {
     }
     U.editTrain = null; clear('tt', 'tp', 'tn', 'tr'); render();
   },
-  edittrain: (t, id) => { U.editTrain = id; ['td', 'tt', 'tp', 'tc', 'ty', 'tn'].forEach(k => { const e = document.getElementById(k); if (e) e.removeAttribute('id'); }); render(); scrollTo({ top: 0, behavior: 'smooth' }); },
+  edittrain: (t, id) => { U.editTrain = id; ['td', 'tt', 'tp', 'tc', 'ty', 'tk', 'tn'].forEach(k => { const e = document.getElementById(k); if (e) e.removeAttribute('id'); }); render(); scrollTo({ top: 0, behavior: 'smooth' }); },
   deltrain: (t, id) => {
     const x = D.train[id];
     ask('¿Borrar este entrenamiento?', () => {
@@ -233,25 +233,6 @@ const ACT = {
   },
 
   // Uniformes
-  pickkit: async (t, id) => {
-    if (!R.profile || R.profile.kit === id) return;
-    const prev = R.profile.kit;
-    R.profile = Object.assign({}, R.profile, { kit: id }); B.me.set(R.profile); render(); vibrate(12);
-    try { await B.setQuiet('users/' + B.uid, { kit: id }); toast('Elegiste el uniforme ' + (id === 'red' ? 'rojo' : 'negro') + ' ✓', { ok: true }); }
-    catch (e) {
-      R.profile = Object.assign({}, R.profile); if (prev) R.profile.kit = prev; else delete R.profile.kit; B.me.set(R.profile); render();
-      toast(e && e.code === 'permission-denied' ? 'Todavía no se puede guardar: falta que el anfitrión actualice la app.' : 'No se pudo guardar. Revisa tu conexión.');
-    }
-  },
-  kitwho: (t, id) => {
-    const nm = id === 'red' ? 'rojo' : 'negro', ch = kitChoosers(id).sort((a, b) => byName(a.name, b.name));
-    const none = list(D.users).filter(u => !u.kit && !D.hosts[u.id]).length;
-    const cat = u => { const p = playerOfUser(u.id); return p ? cname(p.cat) : 'Sin plantel'; };
-    sheet(`<div class="name" style="font-size:19px">Uniforme ${nm} · ${ch.length} ${ch.length === 1 ? 'persona' : 'personas'}</div>
-      <div class="rlist">${ch.length ? ch.map(u => `<div class="rrow2 row">${uav(u)}<div class="grow"><div class="name">${esc(u.name)}</div><div class="mute">${esc(cat(u))}</div></div></div>`).join('') : '<div class="empty">Nadie lo ha elegido todavía.</div>'}</div>
-      ${none ? `<div class="mute small center" style="margin-top:10px">${none} ${none === 1 ? 'persona no ha' : 'personas no han'} elegido uniforme.</div>` : ''}`);
-    hydrate(document.querySelector('.sheet:last-of-type') || document.body);
-  },
   viewkit: (t, id) => { const k = D.kits[id]; const u = k && k.img ? B.imgCached(k.img) : 'assets/uniforme-' + (id === 'red' ? 'rojo' : 'negro') + '.jpg'; if (u) viewImg(u); else B.getImage(k.img).then(x => x && viewImg(x)); },
   kitphoto: (t, id) => {
     pickFiles({ accept: 'image/*' }).then(async fs => {

@@ -112,13 +112,23 @@ input[type=date],input[type=time]{min-height:44px}
 .prow2{padding:10px 12px;gap:10px}
 .kits{display:flex;gap:10px;margin-bottom:10px}
 .kitc{flex:1;margin:0;min-width:0;padding:10px}
-.kitb{display:block;position:relative;width:100%;padding:0;border:0;background:#111;border-radius:8px;margin:8px 0 0;overflow:hidden}
-.kitc.pickable{cursor:pointer;transition:border-color .15s,box-shadow .15s}
-.kitc.sel{border:2px solid var(--gold);box-shadow:0 0 0 3px rgba(255,200,61,.25)}
-.kitn{margin-top:8px;text-align:center;font:700 16px var(--cond);color:var(--mute)}
-.kitc.sel .kitn{color:var(--gold)}
-.kitn b{color:var(--ink);font-size:19px}
-.zm{position:absolute;right:6px;bottom:6px;width:34px;height:34px;border-radius:50%;border:0;background:rgba(0,0,0,.55);font-size:15px;cursor:zoom-in}
+.kitb{display:block;width:100%;padding:0;border:0;background:#111;border-radius:8px;margin:8px 0 0;cursor:zoom-in;overflow:hidden}
+.kitc.sel{border:2px solid var(--gold)}
+.kitn{margin-top:8px;text-align:center;font:700 15px var(--cond);color:var(--mute)}
+.kitn b{color:var(--gold)}
+.kchip{display:inline-flex;align-items:center;gap:4px;font:800 15px var(--cond);letter-spacing:.3px;padding:4px 10px;border-radius:20px;white-space:nowrap}
+.kchip i{width:11px;height:11px;border-radius:50%;flex:none;border:2px solid #fff}
+.kchip.rojo i{background:#ff2a47}
+.kchip.negro i{background:#000}
+.kchip.rojo{background:#D90429;color:#fff}
+.kchip.negro{background:#000;color:#fff;border:1px solid #555}
+.kchip.none{background:none;color:var(--mute);border:1px dashed var(--line);font-weight:700}
+.kchip.big{font-size:18px;padding:6px 14px;box-shadow:0 0 0 2px rgba(255,255,255,.25)}
+.kline{margin-top:10px}
+.kagenda .name{margin-bottom:4px}
+.krow{padding:8px 0;border-top:1px solid var(--line);gap:12px}
+.kwhen{width:74px;flex:none;font:800 17px/1.1 var(--cond)}
+.kwhen small{display:block;font:600 12px Barlow,sans-serif;color:var(--mute)}
 .kit{width:100%;aspect-ratio:1;object-fit:contain;display:block}
 .mini{background:none;border:1px solid var(--line);color:var(--mute);border-radius:8px;padding:6px;font:700 14px var(--cond);width:100%;margin-top:8px;cursor:pointer}
 .logr{padding:7px 0;border-bottom:1px solid var(--line)}

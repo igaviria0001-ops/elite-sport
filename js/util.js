@@ -21,7 +21,7 @@ const _q = new URLSearchParams(location.search);
 const FAKE_DAY = WHO && /^\d{4}-\d{2}-\d{2}$/.test(_q.get('hoy') || '') ? _q.get('hoy') : '';
 export function today() { return FAKE_DAY || ymd(new Date()); }
 export function dayNum() { return +today().slice(8, 10); }
-export function dayOff(k) { const d = new Date(); d.setDate(d.getDate() + k); return ymd(d); }
+export function dayOff(k) { const d = parseDay(today()); d.setDate(d.getDate() + k); return ymd(d); }
 export function thisMonth() { return today().slice(0, 7); }
 export function monthOnly(ym) { return monthName(ym).split(' de ')[0].toLowerCase(); }
 // WhatsApp: número en formato internacional sin «+» (Colombia por defecto).
@@ -43,6 +43,11 @@ export function fmtDay(s) {
   if (s === t) return 'Hoy · ' + base;
   if (s === dayOff(1)) return 'Mañana · ' + base;
   return cap(base);
+}
+export function fmtWhen(s) {
+  if (s === today()) return 'Hoy';
+  if (s === dayOff(1)) return 'Mañana';
+  return cap(parseDay(s).toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/[.,]/g, ''));
 }
 export function fmtShort(s) { return parseDay(s).toLocaleDateString('es', { day: 'numeric', month: 'short' }); }
 export function fmtTime(t) {

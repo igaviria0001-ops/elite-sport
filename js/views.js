@@ -1,7 +1,7 @@
 // Pantallas de Elite Independiente (HTML). Solo dibujan; las acciones están en actions.js.
 import * as B from './backend.js';
 import { D, U, R, cats, C, P, cname, players, myPlayer, userOf, photoOf, users, pendingUsers, feeOf, paidOf, nameMatch, isHostUser, playerOfUser, list, joinMonth, dueDay, isFree, telOf, remOf, debtOf, payReady, isLate } from './state.js';
-import { esc, ymd, dayNum, monthOnly, phoneShow, today, fmtDay, fmtShort, fmtTime, monthName, monthShort, addMonth, ago, stamp, money, slug, initials, firstName, byName, cap, thisMonth } from './util.js';
+import { esc, ymd, fmtWhen, dayNum, monthOnly, phoneShow, today, fmtDay, fmtShort, fmtTime, monthName, monthShort, addMonth, ago, stamp, money, slug, initials, firstName, byName, cap, thisMonth } from './util.js';
 import { OB } from './onboard.js';
 
 export const FT = { 'Fútbol 5': ['1-2-1', '2-2', '1-1-2'], 'Fútbol 6': ['2-2-1', '2-1-2', '1-3-1'], 'Fútbol 7': ['2-3-1', '3-2-1', '2-2-2', '3-1-2'], 'Fútbol 8': ['3-3-1', '3-2-2', '2-3-2'], 'Fútbol 9': ['3-3-2', '3-4-1', '4-3-1'], 'Fútbol 11': ['4-4-2', '4-3-3', '3-5-2', '4-2-3-1', '4-5-1', '3-4-3'] };
@@ -56,7 +56,9 @@ function resTag(res) {
   const a = +m[1], b = +m[2];
   return a > b ? '<span class="tag" style="background:var(--ok)">Ganado</span>' : a < b ? '<span class="tag" style="background:var(--no)">Perdido</span>' : '<span class="tag" style="background:var(--late)">Empate</span>';
 }
-const kitTag = k => (k ? ` <span class="tag" style="background:${k === 'Negro' ? '#111;border:1px solid #444' : 'var(--deep)'}">${esc(k)}</span>` : '');
+// Uniforme que el anfitrión eligió para un partido o entreno («Rojo», «Negro» o vacío).
+const kitChip = (k, cls = '') => (k === 'Rojo' || k === 'Negro' ? `<span class="kchip ${k === 'Negro' ? 'negro' : 'rojo'} ${cls}"><i></i>Uniforme ${k.toLowerCase()}</span>` : '');
+const kitLine = (k, upcoming) => (kitChip(k) ? `<div class="kline">${kitChip(k)}</div>` : upcoming ? '<div class="kline"><span class="kchip none">Uniforme por definir</span></div>' : '');
 function untilTxt(d) {
   const n = Math.round((new Date(d + 'T00:00') - new Date(today() + 'T00:00')) / 86400000);
   return n <= 0 ? '¡Es hoy!' : n === 1 ? 'Es mañana' : 'Faltan ' + n + ' días';
@@ -149,10 +151,10 @@ function remindCard() {
   return `<button class="card remc${late ? ' late' : ''}" data-act="remind"><span class="ico">📲</span><span class="grow"><b>${late ? `${pend.length} ${pend.length === 1 ? 'pago' : 'pagos'} de ${monthOnly(ym)} vencido${pend.length === 1 ? '' : 's'}` : `Recordatorios de pago · ${monthOnly(ym)}`}</b><small>${pend.length} ${pend.length === 1 ? 'pendiente' : 'pendientes'} · ${sent} ${sent === 1 ? 'recordado' : 'recordados'} por WhatsApp${late ? '' : ` · plazo hasta el ${dueDay()}`}. Toca para enviar.</small></span><span class="chev">›</span></button>`;
 }
 function heroMatch(m) {
-  return `<div class="card hero"><small>Próximo partido${m.cat ? ' · ' + esc(cname(m.cat)) : ''} · ${untilTxt(m.date)}</small><div class="big">${rv(m.rival)}<span>vs ${esc(m.rival)}</span></div><div>${esc(fmtDay(m.date))}${m.time ? ' · ' + esc(fmtTime(m.time)) : ''}</div>${m.place || m.kit ? `<small>${esc(m.place || '')}${m.place && m.kit ? ' · ' : ''}${m.kit ? 'Uniforme ' + esc(m.kit.toLowerCase()) : ''}</small>` : ''}</div>`;
+  return `<div class="card hero"><small>Próximo partido${m.cat ? ' · ' + esc(cname(m.cat)) : ''} · ${untilTxt(m.date)}</small><div class="big">${rv(m.rival)}<span>vs ${esc(m.rival)}</span></div><div>${esc(fmtDay(m.date))}${m.time ? ' · ' + esc(fmtTime(m.time)) : ''}</div>${m.place ? `<small>${esc(m.place)}</small>` : ''}${kitChip(m.kit) ? `<div style="margin-top:10px">${kitChip(m.kit, 'big')}</div>` : ''}</div>`;
 }
 function trainMini(x) {
-  return `<button class="card tmini" data-tab="entreno"><div class="ti">${typeIcon(x.type)}</div><div class="grow"><small>Próximo entrenamiento${x.cat ? ' · ' + esc(cname(x.cat)) : ''}</small><div class="name">${esc(fmtDay(x.date))}${x.time ? ' · ' + esc(fmtTime(x.time)) : ''}</div><div class="mute">${esc([x.type, x.place].filter(Boolean).join(' · '))}</div></div><span class="chev">›</span></button>`;
+  return `<button class="card tmini" data-tab="entreno"><div class="ti">${typeIcon(x.type)}</div><div class="grow"><small>Próximo entrenamiento${x.cat ? ' · ' + esc(cname(x.cat)) : ''}</small><div class="name">${esc(fmtDay(x.date))}${x.time ? ' · ' + esc(fmtTime(x.time)) : ''}</div><div class="mute">${esc([x.type, x.place].filter(Boolean).join(' · '))}</div>${kitChip(x.kit) ? `<div style="margin-top:6px">${kitChip(x.kit)}</div>` : ''}</div><span class="chev">›</span></button>`;
 }
 function catGrid() {
   return '<div class="cats">' + cats().map(c => {
@@ -192,19 +194,25 @@ export function vInicio() {
   if (!R.host) h += '<div class="foot"><button class="lnk" data-act="hostkey">Acceso de anfitrión</button></div>';
   return h;
 }
-// Cada persona toca el uniforme que quiere; el anfitrión ve cuántos y quiénes.
-export const kitChoosers = id => users().filter(u => u.kit === id);
+// Uniformes: fotos de los dos uniformes y cuál toca en los próximos entrenos y partidos.
+export function upcomingEvents(cat) {
+  const t = today(), ok = e => e.date >= t && (!cat || !e.cat || e.cat === cat);
+  const ev = list(D.train).filter(ok).map(x => ({ date: x.date, time: x.time || '', cat: x.cat, kit: x.kit || '', what: 'Entreno' + (x.type ? ' · ' + x.type.toLowerCase() : '') }))
+    .concat(list(D.matches).filter(ok).map(m => ({ date: m.date, time: m.time || '', cat: m.cat, kit: m.kit || '', what: 'Partido vs ' + m.rival })));
+  return ev.sort((a, b) => ((a.date + a.time) < (b.date + b.time) ? -1 : 1));
+}
 function vKits() {
-  const mine = R.profile && R.profile.kit;
-  const k = (id, nm) => {
+  const mp = myPlayer(), fc = R.host ? '' : mp ? mp.cat : (R.profile && R.profile.cat) || '';
+  const ev = upcomingEvents(fc).slice(0, 6);
+  const k = (id, nm, val) => {
     const im = D.kits[id] && D.kits[id].img;
     const pic = im ? img(im, 'kit', 'Uniforme ' + nm) : `<img class="kit" src="assets/uniforme-${id === 'red' ? 'rojo' : 'negro'}.jpg" alt="Uniforme ${nm}">`;
-    const n = kitChoosers(id).length, sel = !R.host && mine === id;
-    const foot = R.host ? `<div class="kitn"><b>${n}</b> ${n === 1 ? 'lo eligió' : 'lo eligieron'} <span class="chev">›</span></div><button class="mini" data-act="kitphoto" data-id="${id}">📷 Cambiar foto</button>`
-      : `<div class="kitn">${sel ? '✓ Tu elección' : 'Toca para elegir'}</div>`;
-    return `<div class="card kitc pickable${sel ? ' sel' : ''}" role="button" tabindex="0" data-act="${R.host ? 'kitwho' : 'pickkit'}" data-id="${id}" aria-label="${R.host ? 'Ver quién eligió el uniforme ' + nm : 'Elegir uniforme ' + nm}"><div class="name">Uniforme ${nm}</div><div class="kitb">${pic}<button class="zm" data-act="viewkit" data-id="${id}" aria-label="Ampliar foto">🔍</button></div>${foot}</div>`;
+    const nx = ev.find(e => e.kit === val);
+    return `<div class="card kitc${nx && ev[0] === nx ? ' sel' : ''}"><div class="name">Uniforme ${nm}</div><button class="kitb" data-act="viewkit" data-id="${id}" aria-label="Ver uniforme ${nm}">${pic}</button>${nx ? `<div class="kitn">Próximo uso: <b>${esc(fmtWhen(nx.date))}</b></div>` : ''}${R.host ? `<button class="mini" data-act="kitphoto" data-id="${id}">📷 Cambiar foto</button>` : ''}</div>`;
   };
-  return `<h2>Uniformes</h2><div class="mute" style="margin:-4px 0 8px">${R.host ? 'Toca un uniforme para ver quién lo eligió.' : mine ? 'Puedes cambiar tu elección cuando quieras.' : '¿Cuál uniforme quieres? Tócalo para elegirlo.'}</div><div class="kits">${k('red', 'rojo')}${k('black', 'negro')}</div>`;
+  const rows = ev.filter(e => e.kit || R.host);
+  const agenda = rows.length ? `<div class="card kagenda"><div class="name">¿Qué uniforme toca?</div>${rows.map(e => `<div class="krow row"><div class="kwhen">${esc(fmtWhen(e.date))}${e.time ? `<small>${esc(fmtTime(e.time))}</small>` : ''}</div><div class="grow"><div>${esc(e.what)}</div>${R.host && e.cat ? `<div class="mute small">${esc(cname(e.cat))}</div>` : ''}</div>${kitChip(e.kit) || '<span class="kchip none">Por definir</span>'}</div>`).join('')}${R.host ? '<div class="mute small" style="margin-top:8px">Se elige al crear o editar (✎) cada entreno y partido.</div>' : ''}</div>` : '';
+  return `<h2>Uniformes</h2>${agenda}<div class="kits">${k('red', 'rojo', 'Rojo')}${k('black', 'negro', 'Negro')}</div>`;
 }
 function vLog() {
   const L = list(D.log, (a, b) => b.t - a.t);
@@ -275,7 +283,7 @@ export function vPartidos() {
     <div class="grid"><input type="date" id="md" data-keep value="${esc(m.date || t)}" aria-label="Fecha"><input type="time" id="mt" data-keep value="${esc(m.time || '')}" aria-label="Hora"></div>
     <button class="btn alt pickc" data-act="mcrest">${OBM.crest ? `<img src="${OBM.crest}" alt="">Escudo listo ✓` : '📷 Escudo del rival (opcional)'}</button>
     ${cats().length ? `<select id="mc" data-keep aria-label="Categoría">${catOpts(m.cat || U.fcat || '', 'Todas las categorías')}</select>` : ''}
-    <select id="mk" data-keep aria-label="Uniforme"><option value="">Uniforme: por definir</option><option${m.kit === 'Rojo' ? ' selected' : ''}>Rojo</option><option${m.kit === 'Negro' ? ' selected' : ''}>Negro</option></select>
+    <select id="mk" data-keep aria-label="Uniforme"><option value="">Uniforme: por definir</option><option value="Rojo"${m.kit === 'Rojo' ? ' selected' : ''}>Uniforme rojo</option><option value="Negro"${m.kit === 'Negro' ? ' selected' : ''}>Uniforme negro</option></select>
     <button class="btn" data-act="savematch">${em ? 'Guardar cambios' : 'Guardar partido'}</button>${em ? '<button class="btn alt" data-act="canceledit" style="margin-top:8px">Cancelar</button>' : ''}</div>`;
   }
   h += catChips(U.fcat, 'fcat');
@@ -290,9 +298,9 @@ export function vPartidos() {
 export const OBM = { crest: '' };
 function mCard(m, past) {
   const canRes = R.host && m.date <= today();
-  return `<div class="card mcard"><div class="row">${rv(m.rival, R.host)}<div class="grow"><div class="name">vs ${esc(m.rival)}${ctag(m.cat)}${kitTag(m.kit)}</div><div class="mute">${esc(fmtDay(m.date))}${m.time ? ' · ' + esc(fmtTime(m.time)) : ''}${m.place ? ' · ' + esc(m.place) : ''}</div></div>
+  return `<div class="card mcard"><div class="row">${rv(m.rival, R.host)}<div class="grow"><div class="name">vs ${esc(m.rival)}${ctag(m.cat)}</div><div class="mute">${esc(fmtDay(m.date))}${m.time ? ' · ' + esc(fmtTime(m.time)) : ''}${m.place ? ' · ' + esc(m.place) : ''}</div></div>
   ${canRes ? `<input class="res" id="res-${m.id}" data-keep inputmode="text" maxlength="9" placeholder="Marcador" value="${esc(m.res || '')}" data-res="${m.id}" aria-label="Marcador (Elite - rival)">` : m.res ? `<div class="score">${esc(m.res)}</div>` : ''}
-  ${R.host ? `<button class="x" aria-label="Editar partido" data-act="editmatch" data-id="${m.id}">✎</button><button class="x" aria-label="Borrar partido" data-act="delmatch" data-id="${m.id}">×</button>` : ''}</div>${past && m.res ? `<div class="rrow">${resTag(m.res)}</div>` : ''}</div>`;
+  ${R.host ? `<button class="x" aria-label="Editar partido" data-act="editmatch" data-id="${m.id}">✎</button><button class="x" aria-label="Borrar partido" data-act="delmatch" data-id="${m.id}">×</button>` : ''}</div>${past && m.res ? `<div class="rrow">${resTag(m.res)}</div>` : ''}${kitLine(m.kit, !past)}</div>`;
 }
 
 // ── Entrenamientos ──────────────────────────────────────────────────────────
@@ -305,7 +313,7 @@ export function vEntreno() {
     h += `<div class="card form"><div class="ftitle">${ex ? 'Editar entrenamiento' : 'Nuevo entrenamiento'}</div>
     <div class="grid"><input type="date" id="td" data-keep value="${esc(x.date || t)}" aria-label="Fecha"><input type="time" id="tt" data-keep value="${esc(x.time || '')}" aria-label="Hora"></div>
     <div class="grid"><input id="tp" data-keep maxlength="60" placeholder="Lugar" value="${esc(x.place || '')}"><select id="tc" data-keep aria-label="Categoría">${cats().length ? catOpts(x.cat || U.fcat || '', 'Todas las categorías') : '<option value="">Sin categoría</option>'}</select></div>
-    <select id="ty" data-keep aria-label="Tipo de entrenamiento">${TYPES.map(([n, i]) => `<option value="${n}"${(x.type || 'Técnico') === n ? ' selected' : ''}>${i} ${n}</option>`).join('')}</select>
+    <div class="grid"><select id="ty" data-keep aria-label="Tipo de entrenamiento">${TYPES.map(([n, i]) => `<option value="${n}"${(x.type || 'Técnico') === n ? ' selected' : ''}>${i} ${n}</option>`).join('')}</select><select id="tk" data-keep aria-label="Uniforme"><option value="">Uniforme: por definir</option><option value="Rojo"${x.kit === 'Rojo' ? ' selected' : ''}>Uniforme rojo</option><option value="Negro"${x.kit === 'Negro' ? ' selected' : ''}>Uniforme negro</option></select></div>
     <textarea id="tn" data-keep rows="2" maxlength="400" placeholder="Qué se va a trabajar (ej. pases cortos, definición)">${esc(x.note || '')}</textarea>
     ${ex ? '' : '<select id="tr" data-keep aria-label="Repetir"><option value="1">Solo este día</option><option value="4">Repetir cada semana · 4 semanas</option><option value="8">Repetir cada semana · 8 semanas</option><option value="12">Repetir cada semana · 12 semanas</option></select>'}
     <button class="btn" data-act="savetrain">${ex ? 'Guardar cambios' : 'Guardar entrenamiento'}</button>${ex ? '<button class="btn alt" data-act="canceledit" style="margin-top:8px">Cancelar</button>' : ''}</div>`;
@@ -324,7 +332,7 @@ export function vEntreno() {
 function tCard(x) {
   const ph = (x.photos || []).map((p, i) => `<button class="tph" data-act="viewphoto" data-id="${x.id}" data-i="${i}" aria-label="Ver foto">${img(p.th, '', 'Foto del entrenamiento')}</button>`).join('');
   return `<div class="card tcard"><div class="row"><div class="ti">${typeIcon(x.type)}</div><div class="grow"><div class="name">${esc(fmtDay(x.date))}${x.time ? ' · ' + esc(fmtTime(x.time)) : ''}</div><div class="mute">${esc([x.type, x.place].filter(Boolean).join(' · '))}${ctag(x.cat)}</div></div>${R.host ? `<button class="x" aria-label="Editar entrenamiento" data-act="edittrain" data-id="${x.id}">✎</button><button class="x" aria-label="Borrar entrenamiento" data-act="deltrain" data-id="${x.id}">×</button>` : ''}</div>
-  ${x.note ? `<div class="tnote">${esc(x.note)}</div>` : ''}${ph ? `<div class="tphs">${ph}</div>` : ''}${R.host ? `<button class="btn alt sm2" data-act="trainphotos" data-id="${x.id}">📷 Agregar fotos</button>` : ''}</div>`;
+  ${kitLine(x.kit, x.date >= today())}${x.note ? `<div class="tnote">${esc(x.note)}</div>` : ''}${ph ? `<div class="tphs">${ph}</div>` : ''}${R.host ? `<button class="btn alt sm2" data-act="trainphotos" data-id="${x.id}">📷 Agregar fotos</button>` : ''}</div>`;
 }
 
 // ── Asistencia ──────────────────────────────────────────────────────────────

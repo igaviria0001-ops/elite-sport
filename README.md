@@ -14,7 +14,7 @@ App web (instalable en el celular) para administrar el club **Elite Independient
 - **Asistencia:** presente, tarde o ausente por día, con «Todos presentes». Cada jugador ve la suya.
 - **Pagos:** mes a mes, con un toque por jugador, totales recaudados y pendientes, filtros, búsqueda, historial del año, plazo de pago y meses sin cobro. Cada jugador ve solo sus propios pagos.
 - **Recordatorios de pago:** del 1 al día del plazo el anfitrión ve una tarjeta para recordar por WhatsApp a cada acudiente (mensaje listo, un toque por persona) o al grupo del club. Quien debe ve una franja «Recuerda pagar» en todas las pantallas y un aviso grande al abrir la app, que desaparecen apenas se registra su pago.
-- **Uniformes:** cada jugador toca el uniforme (rojo o negro) que quiere; el anfitrión ve cuántos eligieron cada uno y, al tocarlo, quiénes.
+- **Uniformes:** el anfitrión elige qué uniforme (rojo o negro) se usa en cada entreno y partido; todos lo ven en las tarjetas, en Inicio y en «¿Qué uniforme toca?».
 - **Personas:** quién se registró, agregarlo al plantel o vincularlo con su ficha, y manejo de anfitriones.
 - **Funciona sin internet** con lo último que cargó; los cambios se envían solos al volver la conexión.
 - **Registro de cambios** y **copia de seguridad** para anfitriones.

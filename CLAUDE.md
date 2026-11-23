@@ -23,7 +23,8 @@ Los celulares se actualizan solos (revisan `version.json`) y, durante unos minut
 
 ## Uniformes
 
-- `users/{uid}.kit` = uniforme que eligió la persona (`red` o `black`, como los ids de `kits/`). Lo elige tocando la tarjeta en Inicio; el anfitrión ve el conteo en cada tarjeta y, al tocarla, quiénes. Necesita las reglas con `'kit'` en `validUser` (23 nov 2026); con reglas viejas avisa y no guarda.
+- El anfitrión elige qué uniforme se usa en cada entreno (`train.kit`) y partido (`matches.kit`): `'Rojo'`, `'Negro'` o `''` (por definir). Todos lo ven en las tarjetas, en Inicio y en «¿Qué uniforme toca?» (sección Uniformes, filtrada por la categoría del jugador).
+- `users/{uid}.kit` quedó de una versión anterior (el jugador elegía); ya no se usa. Las reglas lo siguen aceptando para no romper nada.
 
 ## Cómo publicar un cambio
 
