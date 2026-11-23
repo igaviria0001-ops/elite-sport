@@ -1,7 +1,7 @@
 // Service worker de Elite Sport: abre la app aunque no haya internet.
 // Primero intenta la red (así siempre se ve la última versión) y, si no hay
 // conexión, usa la copia guardada. Los datos del club los guarda Firebase aparte.
-const VERSION = 'es-v3';
+const VERSION = 'es-v4';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/main.js', 'js/state.js', 'js/views.js', 'js/actions.js', 'js/onboard.js', 'js/util.js', 'js/backend.js', 'js/config.js', 'js/local.js', 'js/vendor/firebase.js',

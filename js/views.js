@@ -87,10 +87,15 @@ export function navHtml() {
 export function gateHead(sub) {
   return `<div class="gate"><button class="hostkey" data-act="hostkey" aria-label="Acceso de anfitrión">🔑</button><img src="assets/escudo.jpg" alt="Escudo Elite Sport"><div class="gt">ELITE SPORT</div><div class="gs">${sub}</div></div>`;
 }
+function installCard() {
+  if (isApp()) return '';
+  const ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  return `<button class="card instc" data-act="install"><span class="ico">📲</span><span class="grow"><b>Instala la app en tu celular</b><small>${ios ? 'Instálala antes de registrarte: en iPhone la app instalada guarda su propia sesión.' : 'Queda con el escudo del club, como una app más. Puedes instalarla ahora o después.'}</small></span><span class="chev">›</span></button>`;
+}
 export function vOnboard() {
   const cs = cats();
   const ph = OB.photo ? `<img src="${OB.photo}" alt="Tu foto">` : '<span class="cam">📷</span><span>Agregar foto</span>';
-  return gateHead(R.host ? 'Acceso de anfitrión activo' : 'Bienvenidos al club') + `
+  return gateHead(R.host ? 'Acceso de anfitrión activo' : 'Bienvenidos al club') + installCard() + `
   <div class="card onb">
     <div class="step">Crea tu perfil${R.host ? '' : ' de jugador'}</div>
     <button class="pp${OB.photo ? ' has' : ''}" data-act="ob-photo" aria-label="Foto de perfil">${ph}</button>

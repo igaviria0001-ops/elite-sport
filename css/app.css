@@ -184,6 +184,10 @@ button.ym{cursor:pointer;color:var(--ink)}
 .linkbox select{margin-top:8px}
 
 /* Registro / bienvenida */
+.instc{border:1px solid var(--gold);background:#221d0b;gap:12px;padding:12px 14px}
+.instc .ico{font-size:28px;flex:none}
+.instc b{display:block;font:800 20px/1.1 var(--cond);color:var(--gold);letter-spacing:.3px}
+.instc small{display:block;color:var(--ink);opacity:.85;font-size:13px;margin-top:3px}
 .gate{position:relative;background:linear-gradient(160deg,#D90429,#7A0012);border-radius:16px;padding:28px 16px 22px;text-align:center;color:#fff;margin:10px 0 12px;border-bottom:6px solid #000}
 .gate img{width:132px;height:132px;border-radius:50%;object-fit:cover;background:#fff;border:5px solid var(--gold);box-shadow:0 6px 18px rgba(0,0,0,.45)}
 .gt{font:800 40px/1 var(--cond);letter-spacing:2px;margin-top:12px}
