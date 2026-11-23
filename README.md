@@ -17,6 +17,10 @@ App web (instalable en el celular) para administrar el club **Elite Sport**: cat
 - **Funciona sin internet** con lo último que cargó; los cambios se envían solos al volver la conexión.
 - **Registro de cambios** y **copia de seguridad** para anfitriones.
 
+## Actualizaciones
+
+Cuando se publica una versión nueva, todos los celulares se actualizan solos en pocos minutos, sin perder datos ni la sesión: esperan a que todo esté guardado y a que nadie esté escribiendo, y luego recargan. Los detalles para quien haga cambios están en [CLAUDE.md](CLAUDE.md) y las pruebas en [pruebas/](pruebas/README.md).
+
 ## Cómo ponerla en línea
 
 Ver **[GUIA.md](GUIA.md)**: crear el proyecto gratis de Firebase, pegar `firestore.rules`, poner la configuración en `js/config.js` y activar GitHub Pages.
@@ -41,6 +45,9 @@ firestore.rules         reglas de seguridad (aquí está el código de anfitrió
 sw.js, manifest.webmanifest   app instalable y apertura sin internet
 assets/                 escudo, uniformes, íconos y letras (Barlow)
 tools/firebase-bundle/  cómo se generó js/vendor/firebase.js
+tools/version.mjs       marca una versión nueva (correr antes de publicar)
+version.json, js/version.js   versión publicada / versión que trae el código
+pruebas/                pruebas automáticas
 ```
 
 ## Datos en Firestore

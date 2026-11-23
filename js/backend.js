@@ -152,6 +152,8 @@ function toUrl(dataUrl) {
     return URL.createObjectURL(new Blob([a], { type: mime }));
   } catch (e) { return dataUrl; }
 }
+// Respaldo de datos del aparato (clave de anfitrión) por si se borra localStorage.
+export const kv = { get: k => idbGet('__' + k), set: (k, v) => idbPut('__' + k, v) };
 export function imgCached(id) { return id ? mem.get(id) || '' : ''; }
 export function putImage(dataUrl) {
   const id = rid();

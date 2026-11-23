@@ -36,6 +36,11 @@ document.addEventListener('click', e => {
 
 const ACT = {
   retry: () => location.reload(),
+  repair: async () => {
+    // Borra solo la copia de los archivos de la app (nunca datos ni sesión) y recarga.
+    try { for (const k of await caches.keys()) if (/^(elite-sport-|es-v\d)/.test(k)) await caches.delete(k); } catch (e) {}
+    location.reload();
+  },
   hostkey: () => hostModal(render),
   profile: () => profileSheet(render),
   'ob-photo': async () => { const u = await choosePhoto(); if (u) { OB.photo = u; render(); } },

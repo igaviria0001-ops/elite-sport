@@ -34,5 +34,19 @@
 <main id="app"><div class="splash"><img src="assets/escudo.jpg" alt=""><div>Cargando…</div></div></main>
 <noscript><p style="padding:20px;text-align:center">Elite Sport necesita JavaScript activado.</p></noscript>
 <script type="module" src="js/main.js"></script>
+<script>
+// Si la app no arranca en 15 s (por ejemplo, una actualización a medio descargar), ofrece repararla.
+// Solo borra la copia de los archivos de la app: los datos y la sesión quedan intactos.
+setTimeout(function () {
+  if (window.__esBooted) return;
+  var a = document.getElementById('app');
+  a.innerHTML = '<div class="card" style="text-align:center;margin-top:30px"><div class="name">La app está tardando en abrir</div><div class="mute" style="margin:8px 0 14px">Revisa tu conexión. Si sigue así, toca reparar: no se borra nada tuyo.</div><button class="btn" id="fix">Reparar y recargar</button></div>';
+  document.getElementById('fix').onclick = function () {
+    var done = function () { location.reload(); };
+    if (!window.caches) return done();
+    caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return /^(elite-sport-|es-v\d)/.test(k); }).map(function (k) { return caches.delete(k); })); }).then(done, done);
+  };
+}, 15000);
+</script>
 </body>
 </html>

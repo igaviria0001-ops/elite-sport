@@ -88,18 +88,22 @@ export function watchRole() {
   if (!R.key) return syncSubs();
   sub('role', R.key, () => B.watchHost(R.key, (ok, m) => {
     if (ok) { if (!R.host) { R.host = true; } }
-    else if (!m.fromCache) { R.host = false; R.key = null; LS.del('hk'); unsub('role'); }
+    else if (!m.fromCache) { R.host = false; R.key = null; LS.del('hk'); B.kv.set('hk', null); unsub('role'); }
     syncSubs(); redraw();
   }));
   syncSubs();
 }
+export async function restoreHost() {
+  if (LS.get('hk')) return;
+  try { const k = await B.kv.get('hk'); if (k && k.uid === B.uid && k.key) LS.set('hk', k); } catch (e) {}
+}
 export function becomeHost(key) {
-  LS.set('hk', { uid: B.uid, key });
+  LS.set('hk', { uid: B.uid, key }); B.kv.set('hk', { uid: B.uid, key });
   R.host = true; R.key = key;
   watchRole(); redraw();
 }
 export function stopHost() {
-  LS.del('hk'); R.host = false; R.key = null; unsub('role'); syncSubs(); redraw();
+  LS.del('hk'); B.kv.set('hk', null); R.host = false; R.key = null; unsub('role'); syncSubs(); redraw();
 }
 
 // Abre o cierra las lecturas según el rol y la pestaña.
