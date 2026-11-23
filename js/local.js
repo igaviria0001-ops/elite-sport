@@ -121,7 +121,7 @@ function canWrite(path, op, next, prev) {
   if (s[0] === 'users' && s.length === 2) {
     if (op === 'delete') return isHost(u);
     const okData = next && typeof next.name === 'string' && next.name.length >= 3 && next.name.length <= 50 &&
-      keysOnly(next, ['name', 'photo', 'cat', 't', 'last', 'np']) && (next.photo == null || (typeof next.photo === 'string' && next.photo.length <= 40));
+      keysOnly(next, OLD_RULES ? ['name', 'photo', 'cat', 't', 'last', 'np'] : ['name', 'photo', 'cat', 't', 'last', 'np', 'kit']) && (next.photo == null || (typeof next.photo === 'string' && next.photo.length <= 40)) && (next.kit == null || ['red', 'black'].includes(next.kit));
     if (isHost(u)) return okData;
     const npChanged = !same((prev || {}).np, (next || {}).np);
     return s[1] === u && okData && !npChanged;

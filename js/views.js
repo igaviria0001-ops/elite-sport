@@ -192,13 +192,19 @@ export function vInicio() {
   if (!R.host) h += '<div class="foot"><button class="lnk" data-act="hostkey">Acceso de anfitrión</button></div>';
   return h;
 }
+// Cada persona toca el uniforme que quiere; el anfitrión ve cuántos y quiénes.
+export const kitChoosers = id => users().filter(u => u.kit === id);
 function vKits() {
+  const mine = R.profile && R.profile.kit;
   const k = (id, nm) => {
     const im = D.kits[id] && D.kits[id].img;
     const pic = im ? img(im, 'kit', 'Uniforme ' + nm) : `<img class="kit" src="assets/uniforme-${id === 'red' ? 'rojo' : 'negro'}.jpg" alt="Uniforme ${nm}">`;
-    return `<div class="card kitc"><div class="name">Uniforme ${nm}</div><button class="kitb" data-act="viewkit" data-id="${id}" aria-label="Ver uniforme ${nm}">${pic}</button>${R.host ? `<button class="mini" data-act="kitphoto" data-id="${id}">📷 Cambiar foto</button>` : ''}</div>`;
+    const n = kitChoosers(id).length, sel = !R.host && mine === id;
+    const foot = R.host ? `<div class="kitn"><b>${n}</b> ${n === 1 ? 'lo eligió' : 'lo eligieron'} <span class="chev">›</span></div><button class="mini" data-act="kitphoto" data-id="${id}">📷 Cambiar foto</button>`
+      : `<div class="kitn">${sel ? '✓ Tu elección' : 'Toca para elegir'}</div>`;
+    return `<div class="card kitc pickable${sel ? ' sel' : ''}" role="button" tabindex="0" data-act="${R.host ? 'kitwho' : 'pickkit'}" data-id="${id}" aria-label="${R.host ? 'Ver quién eligió el uniforme ' + nm : 'Elegir uniforme ' + nm}"><div class="name">Uniforme ${nm}</div><div class="kitb">${pic}<button class="zm" data-act="viewkit" data-id="${id}" aria-label="Ampliar foto">🔍</button></div>${foot}</div>`;
   };
-  return `<h2>Uniformes</h2><div class="kits">${k('red', 'rojo')}${k('black', 'negro')}</div>`;
+  return `<h2>Uniformes</h2><div class="mute" style="margin:-4px 0 8px">${R.host ? 'Toca un uniforme para ver quién lo eligió.' : mine ? 'Puedes cambiar tu elección cuando quieras.' : '¿Cuál uniforme quieres? Tócalo para elegirlo.'}</div><div class="kits">${k('red', 'rojo')}${k('black', 'negro')}</div>`;
 }
 function vLog() {
   const L = list(D.log, (a, b) => b.t - a.t);

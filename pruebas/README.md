@@ -11,6 +11,7 @@ Necesitan Node 18+, Python 3 y Playwright con Chrome (`npm i playwright`; si Chr
 | `node pruebas/update.mjs` | Publicar versiones nuevas con la app abierta: no recarga si alguien escribe, se actualiza sola después, conserva sesión, rol y datos, se repara si otra app borra copias, sin bucles. |
 | `node pruebas/borrar.mjs` | Un anfitrión se borra a sí mismo y borra a otra persona: no queda su nombre en Personas, plantel, alineación, pagos, registro ni anfitriones; lo que creó para el club se conserva. |
 | `node pruebas/pagos.mjs` | Recordatorios de pago (simula el día 2 y el día 9 del mes): franja y aviso para quien debe, tarjeta del anfitrión, WhatsApp a cada acudiente y al grupo, número inválido, mensaje propio, desaparece al pagar, plazo y mes sin cobro. |
+| `node pruebas/uniformes.mjs` | Cada jugador toca el uniforme que quiere, cambia de opinión, la lupa solo amplía; el anfitrión ve el conteo en vivo y quiénes eligieron cada uno; con reglas viejas avisa sin fallar. |
 | `node pruebas/install.mjs` | Que Chrome la considere instalable y que abra sin internet. |
 
 Las capturas quedan en `/tmp/elite-capturas-*.png`.

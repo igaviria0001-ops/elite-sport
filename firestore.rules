@@ -45,9 +45,10 @@ service cloud.firestore {
     // ── Perfiles de las personas (nombre real y foto) ──────────────────────
     function validUser() {
       let d = request.resource.data;
-      return onlyKeys(['name', 'photo', 'cat', 't', 'last', 'np'])
+      return onlyKeys(['name', 'photo', 'cat', 't', 'last', 'np', 'kit'])
         && d.name is string && d.name.size() >= 3 && d.name.size() <= 50
-        && (!('photo' in d) || d.photo == null || (d.photo is string && d.photo.size() <= 40));
+        && (!('photo' in d) || d.photo == null || (d.photo is string && d.photo.size() <= 40))
+        && (!('kit' in d) || d.kit in ['red', 'black']);
     }
 
     match /users/{uid} {

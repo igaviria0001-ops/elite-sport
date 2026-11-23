@@ -21,10 +21,14 @@ Los celulares se actualizan solos (revisan `version.json`) y, durante unos minut
 - El jugador que debe ve una franja en todas las pantallas y un aviso grande una vez al día; desaparece al registrar el pago.
 - En pruebas (`?who=…`) se puede simular la fecha con `&hoy=AAAA-MM-DD` y las reglas viejas (sin `tels`) con `&viejas`.
 
+## Uniformes
+
+- `users/{uid}.kit` = uniforme que eligió la persona (`red` o `black`, como los ids de `kits/`). Lo elige tocando la tarjeta en Inicio; el anfitrión ve el conteo en cada tarjeta y, al tocarla, quiénes. Necesita las reglas con `'kit'` en `validUser` (23 nov 2026); con reglas viejas avisa y no guarda.
+
 ## Cómo publicar un cambio
 
 1. Hacer el cambio.
-2. Correr las pruebas (ver `pruebas/README.md`): `flow`, `extra`, `borrar`, `pagos`, `update`, `install`. Todas deben pasar.
+2. Correr las pruebas (ver `pruebas/README.md`): `flow`, `extra`, `borrar`, `pagos`, `uniformes`, `update`, `install`. Todas deben pasar.
 3. `node tools/version.mjs` (marca la versión nueva: `version.json`, `js/version.js` y el nombre de caché de `sw.js`). **Sin esto los celulares no se enteran de la actualización.**
 4. Commit y `git push origin main`.
 5. Confirmar que GitHub Pages publicó: `https://api.github.com/repos/igaviria0001-ops/elite-sport/actions/runs?per_page=1` (debe salir el commit con `completed` / `success`).
