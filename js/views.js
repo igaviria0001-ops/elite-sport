@@ -1,7 +1,7 @@
 // Pantallas de Elite Independiente (HTML). Solo dibujan; las acciones están en actions.js.
 import * as B from './backend.js';
-import { D, U, R, cats, C, P, cname, players, myPlayer, userOf, photoOf, users, pendingUsers, feeOf, paidOf, nameMatch, isHostUser, playerOfUser, list } from './state.js';
-import { esc, ymd, today, fmtDay, fmtShort, fmtTime, monthName, monthShort, addMonth, ago, stamp, money, slug, initials, firstName, byName, cap, thisMonth } from './util.js';
+import { D, U, R, cats, C, P, cname, players, myPlayer, userOf, photoOf, users, pendingUsers, feeOf, paidOf, nameMatch, isHostUser, playerOfUser, list, joinMonth, dueDay, isFree, telOf, remOf, debtOf, payReady, isLate } from './state.js';
+import { esc, ymd, dayNum, monthOnly, phoneShow, today, fmtDay, fmtShort, fmtTime, monthName, monthShort, addMonth, ago, stamp, money, slug, initials, firstName, byName, cap, thisMonth } from './util.js';
 import { OB } from './onboard.js';
 
 export const FT = { 'Fútbol 5': ['1-2-1', '2-2', '1-1-2'], 'Fútbol 6': ['2-2-1', '2-1-2', '1-3-1'], 'Fútbol 7': ['2-3-1', '3-2-1', '2-2-2', '3-1-2'], 'Fútbol 8': ['3-3-1', '3-2-2', '2-3-2'], 'Fútbol 9': ['3-3-2', '3-4-1', '4-3-1'], 'Fútbol 11': ['4-4-2', '4-3-3', '3-5-2', '4-2-3-1', '4-5-1', '3-4-3'] };
@@ -72,6 +72,17 @@ export function headerRole(st) {
   const who = R.host ? `<b class="gold">ANFITRIÓN</b> · ${esc(firstName(R.profile.name))}` : `Hola, ${esc(firstName(R.profile.name))}${mp && mp.cat ? ' · ' + esc(cname(mp.cat)) : ''}`;
   return `${who} ${dot}`;
 }
+// Franja de «Recuerda pagar» para quien debe: visible en todas las pantallas.
+export function payBar() {
+  if (!R.profile || !payReady()) return '';
+  const mp = myPlayer(), debt = debtOf(mp);
+  if (!debt.length) return '';
+  const late = debt.some(isLate), fee = feeOf(mp.cat);
+  let t;
+  if (debt.length === 1) t = (late ? `Pago de ${monthOnly(debt[0])} vencido` : `Recuerda pagar la cuota de ${monthOnly(debt[0])}`) + (fee ? ' · ' + money(fee) : '') + (late ? '' : ` · hasta el ${dueDay()}`);
+  else t = `Tienes ${debt.length} cuotas pendientes (${debt.map(monthOnly).join(', ')})` + (fee ? ' · ' + money(fee * debt.length) : '');
+  return `<button class="paybar${late ? ' late' : ''}" data-tab="pagos"><span class="pi">💳</span><span class="grow">${esc(t)}</span><b>›</b></button>`;
+}
 export function headerMe() {
   if (!R.profile) return '';
   return `<button class="me" data-act="profile" aria-label="Mi perfil">${uav(R.profile)}</button>`;
@@ -80,7 +91,8 @@ export function navHtml() {
   const tabs = [['inicio', 'Inicio'], ['cats', 'Categorías'], ['partidos', 'Partidos'], ['entreno', 'Entreno'], ['lista', R.host ? 'Lista' : 'Asistencia'], ['pagos', 'Pagos']];
   if (R.host) tabs.push(['personas', 'Personas']);
   const n = R.host ? pendingUsers().length : 0;
-  return tabs.map(([t, l]) => `<button data-tab="${t}" class="${U.tab === t ? 'on' : ''}">${l}${t === 'personas' && n ? ` <span class="badge">${n}</span>` : ''}</button>`).join('');
+  const owe = payReady() && debtOf(myPlayer()).length > 0;
+  return tabs.map(([t, l]) => `<button data-tab="${t}" class="${U.tab === t ? 'on' : ''}">${l}${t === 'personas' && n ? ` <span class="badge">${n}</span>` : ''}${t === 'pagos' && owe ? ' <span class="dot"></span>' : ''}</button>`).join('');
 }
 
 // ── Bienvenida / registro ───────────────────────────────────────────────────
@@ -123,6 +135,18 @@ function ficha(mp) {
   return `<div class="card ficha"><div class="row">${av(mp, 'xl')}<div class="grow"><small>Tu ficha</small><div class="big2">${esc(mp.name)}</div><div class="mute">${esc(cname(mp.cat) || 'Sin categoría')}${mp.num ? ' · #' + esc(mp.num) : ''}${mp.pos ? ' · ' + esc(mp.pos) : ''}</div></div></div>
   <div class="frow"><span>Pago de ${esc(monthName(ym).split(' ')[0].toLowerCase())}</span><span class="tag" style="background:${pd ? 'var(--ok)' : 'var(--no)'}">${pd ? 'Al día ✓' : 'Pendiente'}</span></div></div>`;
 }
+export function pendingPay(ym, cat) {
+  return players().filter(p => (!cat || p.cat === cat) && (!joinMonth(p) || ym >= joinMonth(p)) && !paidOf(p.id, ym));
+}
+function remindCard() {
+  if (!R.host || !payReady()) return '';
+  const ym = thisMonth();
+  if (isFree(ym)) return '';
+  const pend = pendingPay(ym);
+  if (!pend.length) return '';
+  const late = dayNum() > dueDay(), sent = pend.filter(p => remOf(p.id, ym)).length;
+  return `<button class="card remc${late ? ' late' : ''}" data-act="remind"><span class="ico">📲</span><span class="grow"><b>${late ? `${pend.length} ${pend.length === 1 ? 'pago' : 'pagos'} de ${monthOnly(ym)} vencido${pend.length === 1 ? '' : 's'}` : `Recordatorios de pago · ${monthOnly(ym)}`}</b><small>${pend.length} ${pend.length === 1 ? 'pendiente' : 'pendientes'} · ${sent} ${sent === 1 ? 'recordado' : 'recordados'} por WhatsApp${late ? '' : ` · plazo hasta el ${dueDay()}`}. Toca para enviar.</small></span><span class="chev">›</span></button>`;
+}
 function heroMatch(m) {
   return `<div class="card hero"><small>Próximo partido${m.cat ? ' · ' + esc(cname(m.cat)) : ''} · ${untilTxt(m.date)}</small><div class="big">${rv(m.rival)}<span>vs ${esc(m.rival)}</span></div><div>${esc(fmtDay(m.date))}${m.time ? ' · ' + esc(fmtTime(m.time)) : ''}</div>${m.place || m.kit ? `<small>${esc(m.place || '')}${m.place && m.kit ? ' · ' : ''}${m.kit ? 'Uniforme ' + esc(m.kit.toLowerCase()) : ''}</small>` : ''}</div>`;
 }
@@ -143,6 +167,7 @@ export function vInicio() {
     else h += `<div class="card hero"><div class="big">¡Hola, ${esc(firstName(R.profile.name))}!</div><small>Tu perfil quedó registrado. El anfitrión te agregará al plantel de tu categoría.</small></div>`;
   } else {
     const n = pendingUsers().length;
+    h += remindCard();
     if (n) h += `<button class="card alertc" data-tab="personas"><span class="badge big">${n}</span><span class="grow">${n === 1 ? 'Una persona nueva se registró' : n + ' personas nuevas se registraron'}. Agrégalas al plantel.</span><span class="chev">›</span></button>`;
   }
   const up = upMatches(fc)[0];
@@ -331,10 +356,12 @@ export function vPagos() {
   if (!R.host) return vMisPagos();
   if (!cats().length) return empty('Primero crea una categoría y agrega jugadores.', '<button class="btn" data-go="cats">Ir a Categorías</button>');
   const ym = U.month;
+  const free = isFree(ym);
   let ps = players().filter(p => (!U.pcat || p.cat === U.pcat) && (paidOf(p.id, ym) || !joinMonth(p) || ym >= joinMonth(p))).sort((a, b) => byName(cname(a.cat), cname(b.cat)) || byName(a.name, b.name));
   const paid = ps.filter(p => paidOf(p.id, ym)), n = paid.length, tot = ps.length;
   const got = paid.reduce((s, p) => s + feeOf(p.cat), 0), due = ps.filter(p => !paidOf(p.id, ym)).reduce((s, p) => s + feeOf(p.cat), 0);
   let h = `<div class="monthbar"><button data-act="mprev" aria-label="Mes anterior">‹</button><div class="mlabel">${esc(monthName(ym))}</div><button data-act="mnext" aria-label="Mes siguiente">›</button></div>`;
+  h += free ? `<div class="card note row"><span class="grow"><b>${esc(cap(monthOnly(ym)))} no se cobra.</b> No aparece como pendiente ni se recuerda.</span><button class="btn alt sm" data-act="freemonth">Sí se cobra</button></div>` : '';
   h += catChips(U.pcat, 'pcat');
   h += `<div class="card paysum"><div class="row"><div class="grow"><div class="pbig"><b style="color:var(--ok)">${n}</b> de ${tot} pagaron</div>${got || due ? `<div class="mute">Recaudado <b class="okc">${money(got)}</b> · Falta <b class="noc">${money(due)}</b></div>` : '<div class="mute">Pon la cuota de cada categoría para ver el dinero.</div>'}</div><div class="pct">${tot ? Math.round(n * 100 / tot) : 0}%</div></div><div class="bar"><i style="width:${tot ? n * 100 / tot : 0}%"></i></div></div>`;
   h += `<div class="grid pf"><input id="pq" data-keep placeholder="Buscar jugador" value="${esc(U.pq)}" aria-label="Buscar"><select id="pfil" aria-label="Filtro"><option value="todos"${U.pfil === 'todos' ? ' selected' : ''}>Todos (${tot})</option><option value="no"${U.pfil === 'no' ? ' selected' : ''}>Pendientes (${tot - n})</option><option value="si"${U.pfil === 'si' ? ' selected' : ''}>Pagaron (${n})</option></select></div>`;
@@ -344,26 +371,28 @@ export function vPagos() {
   if (!shown.length) h += empty('Nadie coincide con el filtro.');
   shown.forEach(p => {
     const pd = paidOf(p.id, ym);
-    h += `<div class="card payr${pd ? ' paid' : ''}"><button class="row grow pinfo" data-act="payhist" data-id="${p.id}">${av(p)}<div class="grow"><div class="name">${esc(p.name)}</div><div class="mute">${esc(cname(p.cat))}${feeOf(p.cat) ? ' · ' + money(feeOf(p.cat)) : ''}${pd ? ` · pagó ${esc(fmtShort(ymd(new Date(pd.t))))}${pd.by ? ' · ' + esc(firstName(pd.by)) : ''}` : ''}</div></div></button><button class="ptog${pd ? ' on' : ''}" data-act="pay" data-id="${p.id}" aria-pressed="${pd ? 'true' : 'false'}">${pd ? '✓ Pagó' : 'Pendiente'}</button></div>`;
+    h += `<div class="card payr${pd ? ' paid' : ''}"><button class="row grow pinfo" data-act="payhist" data-id="${p.id}">${av(p)}<div class="grow"><div class="name">${esc(p.name)}</div><div class="mute">${esc(cname(p.cat))}${feeOf(p.cat) ? ' · ' + money(feeOf(p.cat)) : ''}${pd ? ` · pagó ${esc(fmtShort(ymd(new Date(pd.t))))}${pd.by ? ' · ' + esc(firstName(pd.by)) : ''}` : ''}</div></div></button>${!pd && !free ? `<button class="wab${remOf(p.id, ym) ? ' sent' : ''}" data-act="wa1" data-id="${p.id}" aria-label="Recordar por WhatsApp" title="${remOf(p.id, ym) ? 'Recordado ' + esc(fmtShort(ymd(new Date(remOf(p.id, ym))))) : 'Recordar por WhatsApp'}">📲</button>` : ''}<button class="ptog${pd ? ' on' : ''}" data-act="pay" data-id="${p.id}" aria-pressed="${pd ? 'true' : 'false'}">${pd ? '✓ Pagó' : 'Pendiente'}</button></div>`;
   });
-  h += `<button class="btn alt" data-act="sharepay" style="margin-top:6px">📤 Enviar lista de pendientes</button>`;
+  h += `<button class="btn wa" data-act="remind" style="margin-top:6px">📲 Recordar pagos por WhatsApp</button>`;
+  if (!free) h += `<div class="foot" style="margin-top:14px"><button class="lnk" data-act="freemonth">${esc(cap(monthOnly(ym)))} no se cobra (vacaciones, etc.)</button></div>`;
   return h;
 }
 function vMisPagos() {
   const mp = myPlayer();
   if (!mp) return empty('Cuando el anfitrión te agregue al plantel, aquí verás el estado de tus pagos.');
-  const ym = thisMonth(), pd = paidOf(mp.id, ym), y = ym.slice(0, 4);
-  let h = `<div class="card hero paystate ${pd ? 'ok' : 'no'}"><small>${esc(monthName(ym))}</small><div class="big">${pd ? 'Al día ✓' : 'Pendiente'}</div><small>${pd ? 'Pago registrado el ' + esc(fmtShort(ymd(new Date(pd.t)))) : feeOf(mp.cat) ? 'Cuota: ' + money(feeOf(mp.cat)) : 'El anfitrión registra los pagos.'}</small></div>`;
-  h += `<h2>Pagos de ${y}</h2>` + yearGrid(mp, y, false) + '<div class="mute small center">✓ pagado · ✗ pendiente · – antes de entrar al club</div>';
+  const ym = thisMonth(), pd = paidOf(mp.id, ym), y = ym.slice(0, 4), debt = debtOf(mp), fee = feeOf(mp.cat), free = isFree(ym);
+  const ok = !debt.length;
+  let h = `<div class="card hero paystate ${ok ? 'ok' : 'no'}"><small>${esc(monthName(ym))}</small><div class="big">${ok ? 'Al día ✓' : debt.some(isLate) ? 'Pago vencido' : 'Pendiente'}</div><small>${pd ? 'Pago registrado el ' + esc(fmtShort(ymd(new Date(pd.t)))) : free ? 'Este mes no se cobra.' : (fee ? 'Cuota: ' + money(fee) + ' · ' : '') + 'Plazo: hasta el ' + dueDay() + ' de cada mes.'}</small>${debt.length > 1 ? `<small style="display:block;margin-top:6px">Pendientes: ${esc(debt.map(monthOnly).join(', '))}${fee ? ' · total ' + money(fee * debt.length) : ''}</small>` : ''}</div>`;
+  if (!ok) h += '<div class="mute small center" style="margin:-2px 0 10px">Cuando pagues, el anfitrión lo registra y este aviso desaparece.</div>';
+  h += `<h2>Pagos de ${y}</h2>` + yearGrid(mp, y, false) + '<div class="mute small center">✓ pagado · ✗ pendiente · – antes de entrar al club · libre = no se cobra</div>';
   return h;
 }
-export const joinMonth = p => (p && p.t ? ymd(new Date(p.t)).slice(0, 7) : '');
 export function yearGrid(p, y, edit) {
   const now = thisMonth(), since = joinMonth(p);
   let h = '<div class="ygrid">';
   for (let m = 1; m <= 12; m++) {
-    const ym = y + '-' + String(m).padStart(2, '0'), pd = paidOf(p.id, ym), fut = ym > now, pre = since && ym < since;
-    const cls = pd ? 'ok' : fut ? 'fut' : pre ? 'pre' : 'no', mark = pd ? '✓' : fut ? '·' : pre ? '–' : '✗';
+    const ym = y + '-' + String(m).padStart(2, '0'), pd = paidOf(p.id, ym), fut = ym > now, pre = since && ym < since, fr = isFree(ym);
+    const cls = pd ? 'ok' : fut ? 'fut' : pre || fr ? 'pre' : 'no', mark = pd ? '✓' : fut ? '·' : fr ? 'libre' : pre ? '–' : '✗';
     h += edit ? `<button class="ym ${cls}" data-act="payym" data-id="${p.id}" data-ym="${ym}">${monthShort(m)}<small>${mark}</small></button>` : `<div class="ym ${cls}">${monthShort(m)}<small>${mark}</small></div>`;
   }
   return h + '</div>';

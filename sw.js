@@ -6,7 +6,7 @@
 // Ojo: todas las apps de igaviria0001-ops.github.io comparten el mismo espacio de
 // copias. Por eso esta solo borra SUS copias viejas (elite-sport-…) y se repara
 // sola si otra app las borra.
-const VERSION = 'elite-sport-f0abe6a11b';
+const VERSION = 'elite-sport-3b2b1ab17c';
 const MINE = /^(elite-sport-|es-v\d)/;
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',

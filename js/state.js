@@ -1,11 +1,11 @@
 // Estado de la app: datos sincronizados, interfaz, rol y suscripciones en vivo.
 import * as B from './backend.js';
-import { LS, today, thisMonth, byName, norm } from './util.js';
+import { LS, today, thisMonth, byName, norm, ymd, addMonth, dayNum } from './util.js';
 
 // Datos que llegan del servidor (siempre al día).
 export const D = {
   cats: {}, players: {}, matches: {}, rivals: {}, train: {}, kits: {}, users: {}, club: {},
-  pay: {}, log: {}, hosts: {}, att: null, attCat: {}, myPay: null
+  pay: {}, log: {}, hosts: {}, att: null, attCat: {}, myPay: null, payLoaded: false, myPayLoaded: false
 };
 export const loaded = new Set();
 
@@ -44,6 +44,21 @@ export const isHostUser = u => !!D.hosts[u];
 export const pendingUsers = () => users().filter(u => !u.np && !playerOfUser(u.id) && !isHostUser(u.id));
 export const feeOf = catId => { const c = D.cats[catId]; return c && +c.fee > 0 ? +c.fee : 0; };
 export const paidOf = (pid, ym) => { const p = R.host ? D.pay[pid] : D.myPay; return (p && p.m && p.m[ym]) || null; };
+export const joinMonth = p => (p && p.t ? ymd(new Date(p.t)).slice(0, 7) : '');
+// Pagos: plazo (día del mes), meses que no se cobran y recordatorios enviados.
+export const dueDay = () => Math.min(28, Math.max(1, Math.round(+(D.club && D.club.due) || 5)));
+export const isFree = ym => !!(D.club && D.club.free && D.club.free[ym]);
+export const telOf = pid => ((R.host ? D.pay[pid] : D.myPay) || {}).tel || '';
+export const remOf = (pid, ym) => (((D.pay[pid] || {}).rem) || {})[ym] || 0;
+export function debtOf(p) { // meses que debe, desde que entró al club
+  if (!p) return [];
+  const now = thisMonth(), out = [];
+  let ym = joinMonth(p) || now, guard = 0;
+  while (ym <= now && guard++ < 24) { if (!isFree(ym) && !paidOf(p.id, ym)) out.push(ym); ym = addMonth(ym, 1); }
+  return out;
+}
+export const payReady = () => (R.host ? D.payLoaded : D.myPayLoaded);
+export const isLate = ym => ym < thisMonth() || (ym === thisMonth() && dayNum() > dueDay());
 export const attId = () => `${U.date}_${U.kind}_${U.lcat}`;
 // Sugerencia: jugador del plantel (sin vincular) con el mismo nombre que la persona.
 export function nameMatch(name) {
@@ -107,6 +122,7 @@ const CORE = ['cats', 'players', 'matches', 'rivals', 'train', 'kits', 'users'];
 export function watchCore() {
   for (const c of CORE) sub(c, 1, () => B.watchCol(c, d => { D[c] = d; loaded.add(c); if (c === 'players') syncSubs(); redraw(); }));
   // Perfil propio: se espera la respuesta del servidor antes de pedir el registro.
+  sub('club', 1, () => B.watchDoc('club/main', d => { D.club = d || {}; redraw(); }));
   sub('me', 1, () => B.watchDoc('users/' + B.uid, (d, m) => {
     if (d) { R.profile = d; B.me.set(d); R.meReady = true; }
     else if (!m.fromCache || !navigator.onLine) { if (!m.fromCache) { R.profile = null; B.me.set(null); } R.meReady = true; }
@@ -142,17 +158,17 @@ export function stopHost() {
 // Abre o cierra las lecturas según el rol y la pestaña.
 export function syncSubs() {
   if (R.host && R.key) {
-    sub('pay', 1, () => B.watchCol('pay', d => { D.pay = d; redraw(); }));
+    sub('pay', 1, () => B.watchCol('pay', d => { D.pay = d; D.payLoaded = true; redraw(); }));
     sub('log', 1, () => B.watchCol('log', d => { D.log = d; redraw(); }, [['orderBy', 't', 'desc'], ['limit', 25]]));
     sub('hosts', R.key, () => B.watchCol(`hostkeys/${R.key}/members`, d => { D.hosts = d; redraw(); }));
     unsub('mypay'); unsub('attcat');
   } else {
     unsub('pay'); unsub('log'); unsub('hosts');
-    D.pay = {}; D.log = {}; D.hosts = {};
+    D.pay = {}; D.log = {}; D.hosts = {}; D.payLoaded = false;
     const mp = myPlayer();
     if (mp) {
-      sub('mypay', mp.id, () => B.watchDoc('pay/' + mp.id, d => { D.myPay = d; redraw(); }, () => { D.myPay = null; }));
-    } else { unsub('mypay'); D.myPay = null; }
+      sub('mypay', mp.id, () => { D.myPayLoaded = false; return B.watchDoc('pay/' + mp.id, d => { D.myPay = d; D.myPayLoaded = true; redraw(); }, () => { D.myPay = null; D.myPayLoaded = true; redraw(); }); });
+    } else { unsub('mypay'); D.myPay = null; D.myPayLoaded = false; }
   }
   // Asistencia: solo se lee cuando se está en esa pestaña.
   if (U.tab === 'lista') {

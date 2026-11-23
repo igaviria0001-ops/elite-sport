@@ -16,9 +16,25 @@ export function esc(s) {
 }
 const pad = n => String(n).padStart(2, '0');
 export function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
-export function today() { return ymd(new Date()); }
+const _q = new URLSearchParams(location.search);
+// Solo en modo de pruebas (?who=…&hoy=AAAA-MM-DD) se puede simular otra fecha.
+const FAKE_DAY = WHO && /^\d{4}-\d{2}-\d{2}$/.test(_q.get('hoy') || '') ? _q.get('hoy') : '';
+export function today() { return FAKE_DAY || ymd(new Date()); }
+export function dayNum() { return +today().slice(8, 10); }
 export function dayOff(k) { const d = new Date(); d.setDate(d.getDate() + k); return ymd(d); }
 export function thisMonth() { return today().slice(0, 7); }
+export function monthOnly(ym) { return monthName(ym).split(' de ')[0].toLowerCase(); }
+// WhatsApp: número en formato internacional sin «+» (Colombia por defecto).
+export function phoneNorm(s) {
+  let d = String(s || '').replace(/\D/g, '');
+  if (d.length === 10 && d[0] === '3') d = '57' + d;
+  return d.length >= 11 && d.length <= 15 ? d : '';
+}
+export function phoneShow(d) {
+  if (!d) return '';
+  return d.startsWith('57') && d.length === 12 ? '+57 ' + d.slice(2, 5) + ' ' + d.slice(5, 8) + ' ' + d.slice(8) : '+' + d;
+}
+export function waLink(phone, text) { return 'https://wa.me/' + (phone || '') + '?text=' + encodeURIComponent(text); }
 export function parseDay(s) { const p = String(s || '').split('-'); return new Date(+p[0], (+p[1] || 1) - 1, +p[2] || 1); }
 export function fmtDay(s) {
   if (!s) return '';

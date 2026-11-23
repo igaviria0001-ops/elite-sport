@@ -1,11 +1,11 @@
 // Arranque de Elite Independiente: sesión, datos en vivo y dibujo de la pantalla.
 import * as B from './backend.js';
-import { D, U, R, C, cats, watchCore, watchRole, restoreHost, coreReady, onRedraw, syncSubs } from './state.js';
+import { D, U, R, C, cats, watchCore, watchRole, restoreHost, coreReady, onRedraw, syncSubs, myPlayer, debtOf, payReady, isLate, feeOf, dueDay } from './state.js';
 import { VERSION } from './version.js';
 import { OB } from './onboard.js';
-import { gateHead, vBoot, vOnboard, vInicio, vCats, vCat, vPartidos, vEntreno, vLista, vPagos, vPersonas, headerRole, headerMe, navHtml } from './views.js';
+import { payBar, gateHead, vBoot, vOnboard, vInicio, vCats, vCat, vPartidos, vEntreno, vLista, vPagos, vPersonas, headerRole, headerMe, navHtml } from './views.js';
 import { bindActions, hydrate, sheetRefresh } from './actions.js';
-import { toast, LS, esc } from './util.js';
+import { toast, LS, esc, today, monthOnly, money, firstName } from './util.js';
 window.__esBooted = true;
 
 const $ = s => document.querySelector(s);
@@ -59,6 +59,7 @@ function draw() {
   setHtml($('#me'), inApp ? headerMe() : '');
   const nav = $('#nav'), sl = nav.scrollLeft;
   if (setHtml(nav, inApp ? navHtml() : '')) nav.scrollLeft = sl;
+  setHtml($('#paybar'), inApp ? payBar() : '');
   navEnd();
   try { app.innerHTML = view(); }
   catch (e) {
@@ -69,6 +70,26 @@ function draw() {
   putForm(app, f);
   hydrate(document.body);
   if (sheetRefresh) sheetRefresh();
+  if (inApp) setTimeout(payPopup, 900);
+}
+
+// Aviso grande de pago al abrir la app (una vez al día mientras haya pago pendiente).
+function payPopup() {
+  if (!R.profile || document.hidden || document.querySelector('.veil') || !payReady()) return;
+  const mp = myPlayer(), debt = debtOf(mp);
+  if (!debt.length) return;
+  const key = today() + '|' + debt.join(',');
+  if (LS.get('paypop') === key) return;
+  LS.set('paypop', key);
+  const late = debt.some(isLate), fee = feeOf(mp.cat);
+  const what = debt.length === 1 ? `la cuota de <b>${esc(monthOnly(debt[0]))}</b>${fee ? ' (' + money(fee) + ')' : ''}` : `<b>${debt.length} cuotas</b> (${esc(debt.map(monthOnly).join(', '))})${fee ? ' · total ' + money(fee * debt.length) : ''}`;
+  const o = document.createElement('div');
+  o.className = 'veil';
+  o.innerHTML = `<div class="card dlg paypop${late ? ' late' : ''}" role="alertdialog" aria-modal="true"><div class="ppic">💳</div><div class="pt">${late ? 'Pago vencido' : 'Recordatorio de pago'}</div>
+    <div class="center">Hola ${esc(firstName(R.profile.name))}, ${late ? 'tienes pendiente' : 'recuerda pagar'} ${what}.${late ? '' : ` Plazo: hasta el ${dueDay()} de ${esc(monthOnly(debt[debt.length - 1]))}.`}</div>
+    <div class="mute small center" style="margin:10px 0 14px">Cuando el anfitrión registre tu pago, este aviso desaparece.</div><button class="btn">Entendido</button></div>`;
+  o.querySelector('.btn').onclick = () => o.remove();
+  document.body.appendChild(o);
 }
 
 B.onStatus(s => {

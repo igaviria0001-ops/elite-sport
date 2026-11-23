@@ -183,6 +183,34 @@ button.ym{cursor:pointer;color:var(--ink)}
 .linkbox{margin-top:12px;padding:10px;border:1px dashed var(--line);border-radius:10px}
 .linkbox select{margin-top:8px}
 
+/* Recordatorio de pago */
+#paybar{margin:0 -16px}
+.paybar{display:flex;align-items:center;gap:10px;width:100%;border:0;background:var(--gold);color:#1d1400;font:800 16px/1.2 var(--cond);letter-spacing:.2px;padding:10px 16px;text-align:left;cursor:pointer}
+.paybar .pi{font-size:20px;animation:nudge 2.4s ease-in-out infinite}
+.paybar b{font-size:22px;line-height:1}
+.paybar.late{background:#E0001B;color:#fff}
+@keyframes nudge{0%,80%,100%{transform:none}86%{transform:rotate(-14deg) scale(1.15)}93%{transform:rotate(12deg) scale(1.15)}}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--gold);margin-left:4px;vertical-align:2px;box-shadow:0 0 0 2px #7A0012}
+.paypop{text-align:center;border:2px solid var(--gold)}
+.paypop.late{border-color:#ff3b52}
+.paypop .ppic{font-size:46px;line-height:1.1}
+.paypop .pt{font:800 26px var(--cond);color:var(--gold);margin:4px 0 8px}
+.paypop.late .pt{color:#ff6b7f}
+.remc{border:1px solid var(--gold);background:#221d0b;gap:12px;padding:12px 14px}
+.remc.late{border-color:#a3142a;background:#2a0a10}
+.remc .ico{font-size:28px;flex:none}
+.remc b{display:block;font:800 20px/1.1 var(--cond);color:var(--gold)}
+.remc.late b{color:#ff8d9b}
+.remc small{display:block;color:var(--ink);opacity:.85;font-size:13px;margin-top:3px}
+.btn.wa{background:#1FA855}
+.btn.alt.wa{background:none}
+.wab{flex:none;width:44px;height:44px;border-radius:10px;border:1px solid #1f6f43;background:#0f3a22;font-size:19px;cursor:pointer;padding:0}
+.wab.sent{opacity:.5}
+.sh{font:800 18px var(--cond);color:var(--mute);margin:16px 0 8px;letter-spacing:.3px;text-transform:uppercase}
+.rlist{margin-top:10px}
+.rrow2{padding:8px 0;border-bottom:1px solid var(--line)}
+.okline{padding:10px;border-radius:8px;background:#0f3a22;color:#7ff0a8;font-weight:600;text-align:center}
+
 /* Registro / bienvenida */
 .instc{border:1px solid var(--gold);background:#221d0b;gap:12px;padding:12px 14px}
 .instc .ico{font-size:28px;flex:none}

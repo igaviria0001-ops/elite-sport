@@ -1,10 +1,10 @@
 // Acciones: lo que pasa al tocar o cambiar algo. Todo se escribe en el servidor
 // (Firestore) y la pantalla se actualiza sola cuando llega el cambio.
 import * as B from './backend.js';
-import { D, U, R, cats, C, P, cname, players, playersByName, myName, userOf, photoOf, pendingUsers, feeOf, paidOf, attId, syncSubs, stopHost, playerOfUser, list, eraseOps } from './state.js';
-import { FT, POS, TYPES, slots, OBM, yearGrid, getDefer, isApp, av, uav } from './views.js';
+import { D, U, R, cats, C, P, cname, players, playersByName, myName, userOf, photoOf, pendingUsers, feeOf, paidOf, attId, syncSubs, stopHost, playerOfUser, list, eraseOps, dueDay, isFree, telOf, remOf } from './state.js';
+import { FT, POS, TYPES, slots, OBM, yearGrid, getDefer, isApp, av, uav, pendingPay } from './views.js';
 import { OB, choosePhoto, obInput, obSave, hostModal, profileSheet } from './onboard.js';
-import { LS, esc, rid, today, thisMonth, addMonth, monthName, slug, cleanName, nameProblem, shrink, pickFiles, toast, ask, sheet, viewImg, vibrate, byName, norm, ymd, parseDay } from './util.js';
+import { LS, esc, rid, today, thisMonth, addMonth, monthName, monthOnly, cap, money, fmtShort, phoneNorm, phoneShow, waLink, slug, cleanName, nameProblem, shrink, pickFiles, toast, ask, sheet, viewImg, vibrate, byName, norm, ymd, parseDay } from './util.js';
 
 let render = () => {};
 export let sheetRefresh = null;
@@ -217,13 +217,14 @@ const ACT = {
   pcat: (t, id) => { U.pcat = id; render(); },
   pay: (t, id) => togglePay(id, U.month),
   payhist: (t, id) => payHistSheet(id),
-  sharepay: () => {
-    const ym = U.month;
-    const ps = players().filter(p => (!U.pcat || p.cat === U.pcat) && !paidOf(p.id, ym)).sort((a, b) => byName(cname(a.cat), cname(b.cat)) || byName(a.name, b.name));
-    const txt = `⚽ Elite Independiente · Pagos de ${monthName(ym).toLowerCase()}${U.pcat ? ' · ' + cname(U.pcat) : ''}\n` +
-      (ps.length ? `Pendientes (${ps.length}):\n` + ps.map(p => `• ${p.name}${U.pcat ? '' : ' (' + cname(p.cat) + ')'}${feeOf(p.cat) ? ' — $' + feeOf(p.cat).toLocaleString('es-CO') : ''}`).join('\n') : '¡Todos están al día! 🎉');
-    if (navigator.share) navigator.share({ text: txt }).catch(() => {});
-    else { try { navigator.clipboard.writeText(txt); toast('Lista copiada. Pégala en WhatsApp.', { ok: true }); } catch (e) {} window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank'); }
+  remind: () => remindSheet(U.tab === 'pagos' ? U.month : thisMonth()),
+  wa1: (t, id) => { const p = P(id); if (p) sendOne(p, U.month); },
+  freemonth: () => {
+    const ym = U.month, f = isFree(ym), mes = monthOnly(ym);
+    ask(f ? `¿Sí se cobra ${mes}?` : `¿${cap(mes)} no se cobra?`, () => {
+      B.set('club/main', { free: { [ym]: f ? B.DEL() : true } });
+      log((f ? 'Se cobra ' : 'No se cobra ') + monthName(ym).toLowerCase());
+    }, { yes: f ? 'Sí, se cobra' : 'No se cobra', safe: true, sub: f ? 'Los que no hayan pagado volverán a aparecer como pendientes.' : 'Nadie aparecerá con ese mes pendiente ni recibirá recordatorios de ese mes.' });
   },
 
   // Uniformes
@@ -274,6 +275,90 @@ export function hydrate(root) {
   root.querySelectorAll('img[data-img]').forEach(el => { if (!el.getAttribute('src')) B.getImage(el.dataset.img).then(u => { if (u && el.isConnected) el.src = u; }); });
 }
 
+// ── Recordatorios de pago por WhatsApp ──────────────────────────────────────
+// WhatsApp no permite que una app gratis envíe mensajes sola: se abre el chat del
+// acudiente con el mensaje ya escrito y el anfitrión solo toca «Enviar».
+export const DEF_MSG = 'Hola 👋 Te recordamos el pago de la cuota de {mes} de *{jugador}* en Elite Independiente{valor}. El plazo es hasta el {fecha}. Si ya pagaste, ignora este mensaje. ¡Gracias! ⚽';
+export function remText(p, ym, tpl) {
+  const fee = feeOf(p.cat);
+  return String(tpl || (D.club && D.club.msg) || DEF_MSG)
+    .replace(/\{jugador\}/g, p.name).replace(/\{mes\}/g, monthOnly(ym))
+    .replace(/\{valor\}/g, fee ? ' (' + money(fee) + ')' : '')
+    .replace(/\{fecha\}/g, dueDay() + ' de ' + monthOnly(ym));
+}
+function openWa(url) { const w = window.open(url, '_blank'); if (!w) location.href = url; }
+function groupSend(ym) {
+  const ps = pendingPay(ym).sort((a, b) => byName(cname(a.cat), cname(b.cat)) || byName(a.name, b.name));
+  const txt = `⚽ *Elite Independiente* · Cuota de ${monthOnly(ym)}\nPlazo: hasta el ${dueDay()} de ${monthOnly(ym)}\n\n` +
+    (ps.length ? `Pendientes (${ps.length}):\n` + ps.map(p => `• ${p.name} (${cname(p.cat)})${feeOf(p.cat) ? ' — ' + money(feeOf(p.cat)) : ''}`).join('\n') + '\n\nSi ya pagaste, avísale al anfitrión para registrarlo. ¡Gracias!' : '¡Todos están al día! 🎉');
+  if (navigator.share) navigator.share({ text: txt }).catch(() => {});
+  else openWa(waLink('', txt));
+}
+function sendOne(p, ym, tel) {
+  if (!hostOnly()) return;
+  tel = tel || telOf(p.id);
+  if (!tel) { phoneSheet(p.id, t => sendOne(p, ym, t)); return; }
+  openWa(waLink(tel, remText(p, ym)));
+  B.set('pay/' + p.id, { rem: { [ym]: Date.now() } });
+  toast('Se abrió WhatsApp con el mensaje para ' + p.name + ': toca Enviar.', { ok: true, ms: 5000 });
+}
+function phoneSheet(pid, after) {
+  const p = P(pid); if (!p) return;
+  const s = sheet(`<div class="name">WhatsApp del acudiente</div><div class="mute small">${esc(p.name)} · número de quien paga la cuota (papá, mamá o el mismo jugador).</div>
+    <input id="tel" type="tel" inputmode="tel" autocomplete="tel" placeholder="Ej. 300 123 4567" value="${esc(phoneShow(telOf(pid)))}" style="margin:12px 0 4px"><div class="err" id="tel-err"></div>
+    <button class="btn" data-k="ok" style="margin-top:10px">${after ? 'Guardar y abrir WhatsApp' : 'Guardar'}</button>`);
+  setTimeout(() => { const e = s.body.querySelector('#tel'); e && e.focus(); }, 80);
+  s.body.querySelector('[data-k=ok]').onclick = () => {
+    const t = phoneNorm(s.body.querySelector('#tel').value);
+    if (!t) { s.body.querySelector('#tel-err').textContent = 'Escribe un celular válido (10 dígitos, por ejemplo 300 123 4567).'; return; }
+    B.set('pay/' + pid, { tel: t }); s.close();
+    if (after) after(t); else toast('Número guardado.', { ok: true });
+  };
+}
+function msgSheet() {
+  const cur = (D.club && D.club.msg) || DEF_MSG, ex = players()[0] || { name: 'Santiago Gómez', cat: '' };
+  const s = sheet(`<div class="name">Mensaje de recordatorio</div><div class="mute small" style="margin:4px 0 8px">Se reemplaza solo: <b>{jugador}</b> nombre, <b>{mes}</b> mes, <b>{valor}</b> cuota, <b>{fecha}</b> plazo. Los *asteriscos* ponen negrita en WhatsApp.</div>
+    <textarea id="msg" rows="5" maxlength="600">${esc(cur)}</textarea><div class="mute small">Así se verá:</div><div class="tnote" id="prev"></div>
+    <button class="btn" data-k="ok" style="margin-top:10px">Guardar mensaje</button><button class="btn alt" data-k="def" style="margin-top:8px">Volver al mensaje original</button>`);
+  const ta = s.body.querySelector('#msg'), pv = s.body.querySelector('#prev');
+  const paint = () => { pv.textContent = remText(ex, thisMonth(), ta.value); };
+  paint(); ta.addEventListener('input', paint);
+  s.body.querySelector('[data-k=ok]').onclick = () => { const v = ta.value.trim(); if (!v) return; B.set('club/main', { msg: v }); s.close(); toast('Mensaje guardado.', { ok: true }); };
+  s.body.querySelector('[data-k=def]').onclick = () => { ta.value = DEF_MSG; paint(); };
+}
+function remindSheet(ym) {
+  const row = p => {
+    const tel = telOf(p.id), rem = remOf(p.id, ym);
+    return `<div class="rrow2 row">${av(p)}<div class="grow"><div class="name">${esc(p.name)}</div><div class="mute">${esc(cname(p.cat))} · ${tel ? esc(phoneShow(tel)) : '<span class="noc">sin número</span>'}${rem ? ' · <span class="okc">✓ recordado ' + esc(fmtShort(ymdOf(rem))) + '</span>' : ''}</div></div>${tel ? `<button class="btn sm${rem ? ' alt' : ' wa'}" data-k="one" data-p="${p.id}">${rem ? 'Otra vez' : 'Enviar'}</button>` : `<button class="btn alt sm" data-k="tel" data-p="${p.id}">+ Número</button>`}</div>`;
+  };
+  const html = () => {
+    const pend = pendingPay(ym).sort((a, b) => byName(cname(a.cat), cname(b.cat)) || byName(a.name, b.name));
+    const withTel = pend.filter(p => telOf(p.id)), todo = withTel.filter(p => !remOf(p.id, ym)), next = todo[0];
+    return `<div class="name" style="font-size:19px">Recordar pagos · ${esc(monthName(ym))}</div>
+      <div class="row" style="margin:10px 0 12px"><span class="grow mute">Plazo de pago: hasta el día</span><select id="rm-due" style="width:86px">${Array.from({ length: 28 }, (_, i) => `<option${i + 1 === dueDay() ? ' selected' : ''}>${i + 1}</option>`).join('')}</select></div>
+      ${isFree(ym) ? '<div class="card note">Este mes no se cobra.</div>' : !pend.length ? '<div class="empty">¡Todos están al día! 🎉</div>' : `
+      <button class="btn wa" data-k="group">📢 Enviar al grupo del club (${pend.length} ${pend.length === 1 ? 'pendiente' : 'pendientes'})</button>
+      <div class="sh">Mensaje a cada acudiente</div>
+      ${next ? `<button class="btn" data-k="one" data-p="${next.id}">▶ Enviar a ${esc(next.name)} <span class="small">(${withTel.length - todo.length + 1} de ${withTel.length})</span></button><div class="mute small center" style="margin:6px 0 2px">Se abre WhatsApp con el mensaje listo: toca Enviar y vuelve aquí para el siguiente.</div>` : withTel.length ? '<div class="okline">✓ Ya se le recordó a todos los que tienen número.</div>' : '<div class="mute small">Agrega el WhatsApp de cada acudiente para mandarle su mensaje.</div>'}
+      <div class="rlist">${pend.map(row).join('')}</div>`}
+      <button class="lnk" data-k="msg" style="margin-top:12px">✎ Editar el mensaje</button>
+      <div class="mute small" style="margin-top:6px">WhatsApp no deja que una app envíe mensajes sola: se abre el chat con el mensaje escrito y tú solo tocas Enviar.</div>`;
+  };
+  const s = sheet(html(), { onClose: () => { sheetRefresh = null; } });
+  sheetRefresh = () => { const y = s.el.querySelector('.sheet').scrollTop; s.set(html()); hydrate(s.body); s.el.querySelector('.sheet').scrollTop = y; };
+  hydrate(s.body);
+  s.body.addEventListener('click', e => {
+    const b = e.target.closest('[data-k]'); if (!b) return;
+    const k = b.dataset.k, p = P(b.dataset.p);
+    if (k === 'group') groupSend(ym);
+    else if (k === 'one' && p) sendOne(p, ym);
+    else if (k === 'tel' && p) phoneSheet(p.id);
+    else if (k === 'msg') msgSheet();
+  });
+  s.body.addEventListener('change', e => { if (e.target.id === 'rm-due') { B.set('club/main', { due: +e.target.value }); log('Plazo de pago: hasta el día ' + e.target.value); } });
+}
+const ymdOf = t => ymd(new Date(t));
+
 // ── Plantel y personas ──────────────────────────────────────────────────────
 function playerSheet(pid) {
   const p = P(pid); if (!p) return;
@@ -283,6 +368,7 @@ function playerSheet(pid) {
     <label class="lbl">Nombre</label><input id="ep-n" maxlength="40" value="${esc(p.name)}">
     <div class="grid" style="margin-top:8px"><input id="ep-num" inputmode="numeric" maxlength="3" placeholder="Número" value="${esc(p.num || '')}"><select id="ep-pos">${POS.map(x => `<option${x === p.pos ? ' selected' : ''}>${x}</option>`).join('')}</select></div>
     <label class="lbl">Categoría</label><select id="ep-cat">${cats().map(c => `<option value="${c.id}"${c.id === p.cat ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
+    <label class="lbl">WhatsApp del acudiente</label><input id="ep-tel" type="tel" inputmode="tel" placeholder="Para recordar pagos (opcional)" value="${esc(phoneShow(telOf(pid)))}">
     <div class="linkbox">${u ? `<div class="row">${uav(u)}<div class="grow"><div class="name">${esc(u.name)}</div><div class="mute">Vinculado a la app</div></div><button class="btn alt sm" data-k="unlink">Desvincular</button></div>` : `<div class="mute">No está vinculado a ninguna persona de la app.</div>${unlinkedUsers().length ? `<select id="ep-link"><option value="">Vincular con…</option>${unlinkedUsers().map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select>` : ''}`}</div>
     <button class="btn" data-k="save" style="margin-top:12px">Guardar</button>
     <button class="btn alt danger" data-k="del" style="margin-top:8px">Quitar del plantel</button>`;
@@ -309,6 +395,9 @@ function playerSheet(pid) {
       const lk = s.body.querySelector('#ep-link');
       if (lk && lk.value) upd.uid = lk.value;
       const ops = [['update', 'players/' + pid, upd]];
+      const tv = s.body.querySelector('#ep-tel').value.trim(), tn = phoneNorm(tv);
+      if (tv && !tn) { toast('El WhatsApp no es válido: escribe 10 dígitos, por ejemplo 300 123 4567.'); return; }
+      if (tn !== telOf(pid)) ops.push(['set', 'pay/' + pid, { tel: tn || B.DEL() }]);
       if (cat !== p.cat) { const oc = C(p.cat); if (oc) Object.keys(oc.lineup || {}).forEach(i => { if (oc.lineup[i] === pid) ops.push(['update', 'cats/' + oc.id, { ['lineup.' + i]: B.DEL() }]); }); }
       B.batch(ops); log('Jugador editado: ' + upd.name); s.close(); toast('Cambios guardados.', { ok: true });
     }
@@ -324,11 +413,16 @@ function approveSheet(uidv) {
   const s = sheet(`<div class="row">${uav(u, 'lg')}<div class="grow"><div class="name">${esc(u.name)}</div><div class="mute">Agregar al plantel</div></div></div>
     <label class="lbl">Categoría</label><select id="ap-cat">${cats().map(c => `<option value="${c.id}"${c.id === u.cat ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
     <div class="grid" style="margin-top:8px"><input id="ap-num" inputmode="numeric" maxlength="3" placeholder="Número (opcional)"><select id="ap-pos">${POS.map(x => `<option${x === 'Medio' ? ' selected' : ''}>${x}</option>`).join('')}</select></div>
+    <input id="ap-tel" type="tel" inputmode="tel" placeholder="WhatsApp del acudiente (opcional)">
     <button class="btn" data-k="ok" style="margin-top:12px">✓ Agregar al plantel</button>`);
   hydrate(s.body);
   s.body.querySelector('[data-k]').onclick = () => {
     const cat = s.body.querySelector('#ap-cat').value;
-    B.set('players/' + rid(), { name: u.name, num: s.body.querySelector('#ap-num').value.replace(/\D/g, '').slice(0, 3), pos: s.body.querySelector('#ap-pos').value, cat, uid: uidv, t: Date.now() }, false);
+    const tv = s.body.querySelector('#ap-tel').value.trim(), tn = phoneNorm(tv);
+    if (tv && !tn) { toast('El WhatsApp no es válido: escribe 10 dígitos, por ejemplo 300 123 4567.'); return; }
+    const pid = rid();
+    B.set('players/' + pid, { name: u.name, num: s.body.querySelector('#ap-num').value.replace(/\D/g, '').slice(0, 3), pos: s.body.querySelector('#ap-pos').value, cat, uid: uidv, t: Date.now() }, false);
+    if (tn) B.set('pay/' + pid, { tel: tn });
     log('Agregó al plantel: ' + u.name + ' (' + cname(cat) + ')'); s.close();
     toast(u.name + ' ya está en ' + cname(cat) + '.', { ok: true });
   };
