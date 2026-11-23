@@ -1,7 +1,7 @@
 // Acciones: lo que pasa al tocar o cambiar algo. Todo se escribe en el servidor
 // (Firestore) y la pantalla se actualiza sola cuando llega el cambio.
 import * as B from './backend.js';
-import { D, U, R, cats, C, P, cname, players, playersByName, myName, userOf, photoOf, pendingUsers, feeOf, paidOf, attId, syncSubs, stopHost, playerOfUser, list } from './state.js';
+import { D, U, R, cats, C, P, cname, players, playersByName, myName, userOf, photoOf, pendingUsers, feeOf, paidOf, attId, syncSubs, stopHost, playerOfUser, list, eraseOps } from './state.js';
 import { FT, POS, TYPES, slots, OBM, yearGrid, getDefer, isApp, av, uav } from './views.js';
 import { OB, choosePhoto, obInput, obSave, hostModal, profileSheet } from './onboard.js';
 import { LS, esc, rid, today, thisMonth, addMonth, monthName, slug, cleanName, nameProblem, shrink, pickFiles, toast, ask, sheet, viewImg, vibrate, byName, norm, ymd, parseDay } from './util.js';
@@ -12,7 +12,7 @@ export function bindActions(r) { render = r; }
 
 const val = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; };
 const clear = (...ids) => ids.forEach(id => { const e = document.getElementById(id); if (e) e.value = e.tagName === 'SELECT' ? (e.options[0] ? e.options[0].value : '') : ''; });
-function log(x) { B.set('log/' + rid(), { t: Date.now(), w: myName(), x }, false); }
+function log(x) { B.set('log/' + rid(), { t: Date.now(), w: myName(), u: B.uid, x }, false); }
 const hostOnly = () => { if (!R.host) { toast('Solo un anfitrión puede hacer cambios.'); return false; } return true; };
 
 function go(tab) {
@@ -361,7 +361,9 @@ function personSheet(uidv) {
     <button class="btn" data-k="save">Guardar nombre</button>
     ${p ? '' : '<button class="btn alt" data-k="add" style="margin-top:8px">Agregar al plantel</button><button class="btn alt" data-k="link" style="margin-top:8px">Vincular con jugador existente</button>'}
     ${u.np ? '<button class="btn alt" data-k="isplayer" style="margin-top:8px">Sí es jugador</button>' : ''}
-    ${uidv !== B.uid ? '<button class="btn alt danger" data-k="del" style="margin-top:8px">Borrar persona</button>' : ''}`);
+    ${uidv === B.uid ? '<div class="mute small center" style="margin-top:12px">Para borrarte a ti: toca tu foto (arriba) → «Borrar mi cuenta del club».</div>' : p
+      ? '<button class="btn alt danger" data-k="del" style="margin-top:14px">Borrar por completo (perfil, ficha y pagos)</button><button class="btn alt" data-k="delkeep" style="margin-top:8px">Borrar solo su perfil (conservar la ficha)</button>'
+      : '<button class="btn alt danger" data-k="del" style="margin-top:14px">Borrar persona por completo</button>'}`);
   hydrate(s.body);
   s.body.addEventListener('click', e => {
     const b = e.target.closest('[data-k]'); if (!b) return;
@@ -370,11 +372,15 @@ function personSheet(uidv) {
     else if (k === 'add') { s.close(); approveSheet(uidv); }
     else if (k === 'link') { s.close(); linkSheet(uidv); }
     else if (k === 'isplayer') { B.update('users/' + uidv, { np: B.DEL() }); s.close(); }
-    else if (k === 'del') ask('¿Borrar a ' + u.name + '?', () => {
-      const ops = [['del', 'users/' + uidv]];
-      if (p) ops.push(['update', 'players/' + p.id, { uid: B.DEL() }]);
-      B.batch(ops); log('Borró a la persona ' + u.name); s.close();
-    }, { sub: 'Si vuelve a abrir la app tendrá que registrarse otra vez. Su ficha del plantel se conserva.' });
+    else if (k === 'del') ask('¿Borrar a ' + u.name + ' por completo?', async () => {
+      s.close();
+      const ops = await eraseOps(uidv, { ficha: true });
+      B.batch(ops); toast(u.name + ' ya no aparece en ninguna parte.', { ok: true });
+    }, { sub: 'Se borra su perfil, su ficha del plantel, sus pagos, su acceso de anfitrión y lo que lo nombra en el registro. Si vuelve a abrir la app, tendrá que registrarse otra vez.' });
+    else if (k === 'delkeep') ask('¿Borrar el perfil de ' + u.name + '?', async () => {
+      s.close();
+      B.batch(await eraseOps(uidv, { ficha: false })); toast('Perfil borrado. Su ficha del plantel se conserva.', { ok: true });
+    }, { sub: 'Su ficha del plantel y sus pagos se conservan, sin vínculo con la app.' });
   });
 }
 

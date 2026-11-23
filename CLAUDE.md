@@ -15,7 +15,7 @@ Los celulares se actualizan solos (revisan `version.json`) y, durante unos minut
 ## Cómo publicar un cambio
 
 1. Hacer el cambio.
-2. Correr las pruebas (ver `pruebas/README.md`): `flow`, `extra`, `update`, `install`. Todas deben pasar.
+2. Correr las pruebas (ver `pruebas/README.md`): `flow`, `extra`, `borrar`, `update`, `install`. Todas deben pasar.
 3. `node tools/version.mjs` (marca la versión nueva: `version.json`, `js/version.js` y el nombre de caché de `sw.js`). **Sin esto los celulares no se enteran de la actualización.**
 4. Commit y `git push origin main`.
 5. Confirmar que GitHub Pages publicó: `https://api.github.com/repos/igaviria0001-ops/elite-sport/actions/runs?per_page=1` (debe salir el commit con `completed` / `success`).

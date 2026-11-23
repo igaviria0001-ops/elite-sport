@@ -59,6 +59,39 @@ export function nameMatch(name) {
   return best;
 }
 
+// ── Borrar a una persona de todas partes (solo anfitriones) ────────────────
+// Perfil y foto, ficha del plantel con sus pagos y su lugar en las alineaciones,
+// entradas del registro que la nombran, su nombre en los pagos que marcó y su
+// acceso de anfitrión. Lo que creó para el club (categorías, partidos…) se queda.
+export async function eraseOps(uidv, { ficha = true } = {}) {
+  const u = D.users[uidv] || {}, names = new Set();
+  if (u.name) names.add(u.name);
+  const mine = list(D.players).filter(p => p.uid === uidv);
+  const ops = [['del', 'users/' + uidv]];
+  if (u.photo) ops.push(['del', 'img/' + u.photo]);
+  const gone = new Set();
+  for (const p of mine) {
+    if (!ficha) { ops.push(['update', 'players/' + p.id, { uid: B.DEL() }]); continue; }
+    names.add(p.name); gone.add(p.id);
+    ops.push(['del', 'players/' + p.id], ['del', 'pay/' + p.id]);
+    if (p.photo) ops.push(['del', 'img/' + p.photo]);
+    cats().forEach(c => Object.keys(c.lineup || {}).forEach(i => { if (c.lineup[i] === p.id) ops.push(['update', 'cats/' + c.id, { ['lineup.' + i]: B.DEL() }]); }));
+  }
+  let logs = D.log;
+  try { logs = await B.getAll('log'); } catch (e) {}
+  for (const id in logs) {
+    const l = logs[id] || {};
+    if (l.u === uidv || names.has(l.w) || [...names].some(n => String(l.x || '').includes(n))) ops.push(['del', 'log/' + id]);
+  }
+  for (const pid in D.pay) {
+    if (gone.has(pid)) continue;
+    const m = (D.pay[pid] || {}).m || {};
+    for (const ym in m) if (m[ym] && names.has(m[ym].by)) ops.push(['set', 'pay/' + pid, { m: { [ym]: { by: '' } } }]);
+  }
+  if (D.hosts[uidv] && R.key && uidv !== B.uid) ops.push(['del', `hostkeys/${R.key}/members/${uidv}`]);
+  return ops;
+}
+
 // ── Suscripciones en vivo ───────────────────────────────────────────────────
 const subs = {};
 let redraw = () => {};

@@ -1,6 +1,6 @@
 // Registro (foto + nombre real), recorte de foto, acceso de anfitrión y perfil.
 import * as B from './backend.js';
-import { R, D, cats, myPlayer, becomeHost, stopHost, cname } from './state.js';
+import { R, D, cats, myPlayer, becomeHost, stopHost, cname, eraseOps } from './state.js';
 import { LS, esc, loadImage, pickFiles, nameProblem, cleanName, toast, sheet, ask, vibrate } from './util.js';
 
 export const OB = { photo: '', name: '', cat: '' };
@@ -157,7 +157,7 @@ export function profileSheet(render) {
     <label class="lbl" for="pf-name">Nombre y apellido</label><input id="pf-name" maxlength="40" autocapitalize="words" value="${esc(p.name || '')}"><div class="err" id="pf-err"></div>
     ${mp ? `<div class="mute" style="margin-top:8px">En el plantel: <b>${esc(mp.name)}</b> · ${esc(cname(mp.cat) || 'sin categoría')}</div>` : !R.host && cats().length ? `<label class="lbl" for="pf-cat">Categoría</label><select id="pf-cat"><option value="">Sin elegir</option>${cats().map(c => `<option value="${c.id}"${c.id === p.cat ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select>` : ''}
     <button class="btn" data-k="save" style="margin-top:14px">Guardar cambios</button>
-    <div class="pfrole">${R.host ? '<div><b class="gold">Eres anfitrión</b> en este aparato.</div><button class="btn alt sm" data-k="backup" style="margin:8px 0 2px">📦 Descargar copia de seguridad</button><button class="lnk" data-k="leave">Dejar de ser anfitrión</button>' : '<button class="lnk" data-k="host">Acceso de anfitrión</button>'}</div>
+    <div class="pfrole">${R.host ? '<div><b class="gold">Eres anfitrión</b> en este aparato.</div><button class="btn alt sm" data-k="backup" style="margin:8px 0 2px">📦 Descargar copia de seguridad</button><button class="lnk" data-k="leave">Dejar de ser anfitrión</button><button class="lnk" data-k="wipe">Borrar mi cuenta del club</button>' : '<button class="lnk" data-k="host">Acceso de anfitrión</button><button class="lnk" data-k="wipeinfo">Borrar mi cuenta</button>'}</div>
     <div class="mute small center">${B.MODE === 'firebase' ? 'Tus datos están guardados en el servidor del club y en este aparato.' : 'Modo local: los datos solo están en este aparato.'}</div>`;
   const s = sheet(html());
   const hydr = () => s.body.querySelectorAll('img[data-img]:not([src]),img[data-img][src=""]').forEach(el => B.getImage(el.dataset.img).then(u => { if (u) el.src = u; }));
@@ -179,6 +179,24 @@ export function profileSheet(render) {
         toast('Copia descargada (sin las fotos).', { ok: true });
       } catch (e) { toast('No se pudo preparar la copia. Revisa tu conexión.'); }
       b.disabled = false; b.textContent = '📦 Descargar copia de seguridad';
+    }
+    else if (k === 'wipeinfo') {
+      toast('Para borrar tu cuenta, pídele a un anfitrión que te borre desde Personas.', { ms: 6000 });
+    }
+    else if (k === 'wipe') {
+      ask('¿Borrar tu cuenta del club?', async () => {
+        if (!navigator.onLine) { toast('Necesitas conexión a internet para borrar tu cuenta.'); return; }
+        s.close();
+        toast('Borrando tu cuenta…', { ok: true, ms: 15000 });
+        try {
+          const ops = await eraseOps(B.uid, { ficha: true });
+          await B.batch(ops);
+          await B.del(`hostkeys/${R.key}/members/${B.uid}`);
+          ['me', 'hk', 'lock', 'tab', 'fcat', 'upd'].forEach(x => LS.del(x));
+          await B.kv.set('hk', null);
+          location.reload();
+        } catch (e) { toast('No se pudo terminar de borrar. Revisa tu conexión e inténtalo otra vez.'); }
+      }, { yes: 'Sí, borrar todo', sub: 'Se borra tu perfil y tu foto, tu ficha del plantel y tus pagos si estás en él, lo que te nombra en el registro y tu acceso de anfitrión. Lo que creaste para el club (categorías, partidos, entrenos) se queda.' });
     }
     else if (k === 'leave') {
       ask('¿Dejar de ser anfitrión?', async () => {
