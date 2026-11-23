@@ -48,7 +48,7 @@ const ACT = {
     const url = location.href.split('?')[0].split('#')[0];
     sheet(`<div class="name center">Instalar Elite Sport</div>${inApp ? `<div class="card note" style="margin-top:10px">Estás viendo la app dentro de otra aplicación. Primero ábrela en ${ios ? '<b>Safari</b>' : '<b>Chrome</b>'}: toca los tres puntos o el botón de compartir y elige «Abrir en el navegador». Dirección: <b>${esc(url)}</b></div>` : ''}<ol class="steps">${ios
       ? '<li>Abre la app en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> (cuadro con flecha hacia arriba).</li><li>Elige <b>Agregar a pantalla de inicio</b> y luego <b>Agregar</b>.</li>'
-      : '<li>Abre la app en <b>Chrome</b>.</li><li>Toca los <b>tres puntos</b> (arriba a la derecha).</li><li>Elige <b>Instalar app</b>, o «Agregar a la pantalla principal» y luego <b>Instalar</b> (no «Crear acceso directo»).</li>'}</ol><div class="mute small">Queda como una app más, con el escudo del club. Tu sesión y tus datos se conservan al instalarla.</div>`);
+      : '<li>Abre la app en <b>Chrome</b>. Si arriba a la izquierda ves una <b>✕</b>, estás dentro de otra app: toca los tres puntos y elige <b>Abrir en Chrome</b>.</li><li>Toca los <b>tres puntos</b> (arriba a la derecha).</li><li>Elige <b>Instalar app</b>, o «Agregar a la pantalla principal» y luego <b>Instalar</b> (no «Crear acceso directo»).</li>'}</ol><div class="mute small">Queda como una app más, con el escudo del club. Tu sesión y tus datos se conservan al instalarla.</div>`);
   },
 
   // Categorías
