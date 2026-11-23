@@ -1,4 +1,4 @@
-// Service worker de Elite Sport: abre la app aunque no haya internet.
+// Service worker de Elite Independiente: abre la app aunque no haya internet.
 // Primero intenta la red (así siempre se ve la última versión) y, si no hay
 // conexión, usa la copia guardada. Los datos del club los guarda Firebase aparte:
 // aquí solo se guardan los archivos de la app, nunca datos ni la sesión.
@@ -6,7 +6,7 @@
 // Ojo: todas las apps de igaviria0001-ops.github.io comparten el mismo espacio de
 // copias. Por eso esta solo borra SUS copias viejas (elite-sport-…) y se repara
 // sola si otra app las borra.
-const VERSION = 'elite-sport-8b1140634c';
+const VERSION = 'elite-sport-4a982632d4';
 const MINE = /^(elite-sport-|es-v\d)/;
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',

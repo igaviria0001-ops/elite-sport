@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Reglas de seguridad de Elite Sport (se pegan en Firebase → Firestore → Reglas).
+//  Reglas de seguridad de Elite Independiente (se pegan en Firebase → Firestore → Reglas).
 //
 //  · Todos los que abren la app entran con una sesión anónima y guardan su
 //    perfil (nombre real y foto). Pueden VER categorías, partidos, entrenos,

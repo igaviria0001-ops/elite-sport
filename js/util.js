@@ -1,4 +1,4 @@
-// Utilidades comunes de Elite Sport.
+// Utilidades comunes de Elite Independiente.
 
 // ── Almacenamiento del aparato ──────────────────────────────────────────────
 // ?who=nombre separa "aparatos" en pruebas (varios usuarios en un mismo navegador).

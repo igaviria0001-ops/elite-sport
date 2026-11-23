@@ -1,6 +1,6 @@
-# Elite Sport — instrucciones para cambios futuros
+# Elite Independiente — instrucciones para cambios futuros
 
-App web del club Elite Sport (aparte de GameHub). Vive en https://igaviria0001-ops.github.io/elite-sport/ (GitHub Pages, rama `main`, raíz). Datos en Firebase, proyecto `elite-sport-ea360` (Firestore + sesión anónima). El código de anfitrión vive solo en `firestore.rules` (nunca en el código de la app). Ignacio autorizó publicar `js/config.js` con los datos de Firebase en este repositorio público (esos datos no son secretos).
+App web del club Elite Independiente (aparte de GameHub). Vive en https://igaviria0001-ops.github.io/elite-sport/ (GitHub Pages, rama `main`, raíz). Datos en Firebase, proyecto `elite-sport-ea360` (Firestore + sesión anónima). El código de anfitrión vive solo en `firestore.rules` (nunca en el código de la app). Ignacio autorizó publicar `js/config.js` con los datos de Firebase en este repositorio público (esos datos no son secretos).
 
 ## Regla de oro: una actualización nunca puede borrar datos ni cerrar sesiones
 

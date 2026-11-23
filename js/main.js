@@ -1,4 +1,4 @@
-// Arranque de Elite Sport: sesión, datos en vivo y dibujo de la pantalla.
+// Arranque de Elite Independiente: sesión, datos en vivo y dibujo de la pantalla.
 import * as B from './backend.js';
 import { D, U, R, C, cats, watchCore, watchRole, restoreHost, coreReady, onRedraw, syncSubs } from './state.js';
 import { VERSION } from './version.js';

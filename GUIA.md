@@ -1,4 +1,4 @@
-# Guía: poner Elite Sport en línea
+# Guía: poner Elite Independiente en línea
 
 Son 3 partes. Hay que hacerlas una sola vez y toman unos 10 minutos.
 
@@ -24,7 +24,7 @@ Ahí se guardan los datos y desde ahí se sincronizan todos los celulares. El pl
    - **Publicar**.
 6. **Registrar la app web**:
    - Arriba a la izquierda, ⚙ → **Configuración del proyecto**.
-   - Abajo, en **Tus apps**, toca el ícono web **`</>`** → apodo: `Elite Sport` → **no** marques Hosting → **Registrar app**.
+   - Abajo, en **Tus apps**, toca el ícono web **`</>`** → apodo: `Elite Independiente` → **no** marques Hosting → **Registrar app**.
    - Aparece un bloque que empieza con `const firebaseConfig = {`. **Cópialo y mándaselo a Claude** (o pégalo tú en `js/config.js`).
 
 > Esos datos de `firebaseConfig` no son secretos: Firebase los diseñó para ir dentro de la app. Lo que protege la información son las reglas del paso 5.

@@ -1,6 +1,6 @@
-# Elite Sport
+# Elite Independiente
 
-App web (instalable en el celular) para administrar el club **Elite Sport**: categorías, plantel y alineaciones, partidos, entrenamientos, asistencia y pagos. Todo se sincroniza en vivo entre los celulares de los anfitriones, los jugadores y las familias.
+App web (instalable en el celular) para administrar el club **Elite Independiente**: categorías, plantel y alineaciones, partidos, entrenamientos, asistencia y pagos. Todo se sincroniza en vivo entre los celulares de los anfitriones, los jugadores y las familias.
 
 **App:** https://igaviria0001-ops.github.io/elite-sport/
 

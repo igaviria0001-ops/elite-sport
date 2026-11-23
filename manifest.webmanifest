@@ -1,7 +1,7 @@
 {
-  "name": "Elite Sport",
-  "short_name": "Elite Sport",
-  "description": "App del club Elite Sport: categorías, partidos, entrenamientos, asistencia y pagos.",
+  "name": "Elite Independiente",
+  "short_name": "Elite Independiente",
+  "description": "App del club Elite Independiente: categorías, partidos, entrenamientos, asistencia y pagos.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

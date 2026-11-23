@@ -170,11 +170,11 @@ export function profileSheet(render) {
     else if (k === 'backup') {
       b.disabled = true; b.textContent = 'Preparando…';
       try {
-        const cols = ['cats', 'players', 'matches', 'rivals', 'train', 'kits', 'users', 'att', 'pay', 'log'], data = { app: 'Elite Sport', fecha: new Date().toISOString() };
+        const cols = ['cats', 'players', 'matches', 'rivals', 'train', 'kits', 'users', 'att', 'pay', 'log'], data = { app: 'Elite Independiente', fecha: new Date().toISOString() };
         for (const c of cols) data[c] = await B.getAll(c);
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
-        a.download = 'elite-sport-copia-' + new Date().toISOString().slice(0, 10) + '.json';
+        a.download = 'elite-independiente-copia-' + new Date().toISOString().slice(0, 10) + '.json';
         document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
         toast('Copia descargada (sin las fotos).', { ok: true });
       } catch (e) { toast('No se pudo preparar la copia. Revisa tu conexión.'); }

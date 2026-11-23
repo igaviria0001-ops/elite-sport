@@ -51,7 +51,7 @@ const ACT = {
     const ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
     const inApp = /FBAN|FBAV|Instagram|WhatsApp|Line\/|; wv\)|GSA\//i.test(ua);
     const url = location.href.split('?')[0].split('#')[0];
-    sheet(`<div class="name center">Instalar Elite Sport</div>${inApp ? `<div class="card note" style="margin-top:10px">Estás viendo la app dentro de otra aplicación. Primero ábrela en ${ios ? '<b>Safari</b>' : '<b>Chrome</b>'}: toca los tres puntos o el botón de compartir y elige «Abrir en el navegador». Dirección: <b>${esc(url)}</b></div>` : ''}<ol class="steps">${ios
+    sheet(`<div class="name center">Instalar Elite Independiente</div>${inApp ? `<div class="card note" style="margin-top:10px">Estás viendo la app dentro de otra aplicación. Primero ábrela en ${ios ? '<b>Safari</b>' : '<b>Chrome</b>'}: toca los tres puntos o el botón de compartir y elige «Abrir en el navegador». Dirección: <b>${esc(url)}</b></div>` : ''}<ol class="steps">${ios
       ? '<li>Abre la app en <b>Safari</b>.</li><li>Toca el botón <b>Compartir</b> (cuadro con flecha hacia arriba).</li><li>Elige <b>Agregar a pantalla de inicio</b> y luego <b>Agregar</b>.</li>'
       : '<li>Abre la app en <b>Chrome</b>. Si arriba a la izquierda ves una <b>✕</b>, estás dentro de otra app: toca los tres puntos y elige <b>Abrir en Chrome</b>.</li><li>Toca los <b>tres puntos</b> (arriba a la derecha).</li><li>Elige <b>Instalar app</b>, o «Agregar a la pantalla principal» y luego <b>Instalar</b> (no «Crear acceso directo»).</li>'}</ol><div class="mute small">Queda como una app más, con el escudo del club. Tu sesión y tus datos se conservan al instalarla.</div>`);
   },
@@ -220,7 +220,7 @@ const ACT = {
   sharepay: () => {
     const ym = U.month;
     const ps = players().filter(p => (!U.pcat || p.cat === U.pcat) && !paidOf(p.id, ym)).sort((a, b) => byName(cname(a.cat), cname(b.cat)) || byName(a.name, b.name));
-    const txt = `⚽ Elite Sport · Pagos de ${monthName(ym).toLowerCase()}${U.pcat ? ' · ' + cname(U.pcat) : ''}\n` +
+    const txt = `⚽ Elite Independiente · Pagos de ${monthName(ym).toLowerCase()}${U.pcat ? ' · ' + cname(U.pcat) : ''}\n` +
       (ps.length ? `Pendientes (${ps.length}):\n` + ps.map(p => `• ${p.name}${U.pcat ? '' : ' (' + cname(p.cat) + ')'}${feeOf(p.cat) ? ' — $' + feeOf(p.cat).toLocaleString('es-CO') : ''}`).join('\n') : '¡Todos están al día! 🎉');
     if (navigator.share) navigator.share({ text: txt }).catch(() => {});
     else { try { navigator.clipboard.writeText(txt); toast('Lista copiada. Pégala en WhatsApp.', { ok: true }); } catch (e) {} window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank'); }

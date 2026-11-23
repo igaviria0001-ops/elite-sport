@@ -1,4 +1,4 @@
-// Capa de datos de Elite Sport.
+// Capa de datos de Elite Independiente.
 // Habla con Firestore (Firebase) usando su API modular. Si config.js está vacío,
 // usa local.js, que imita la misma API dentro del aparato (modo local / pruebas).
 import { FIREBASE } from './config.js';

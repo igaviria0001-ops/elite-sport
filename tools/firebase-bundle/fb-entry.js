@@ -1,4 +1,4 @@
-// Subconjunto de Firebase que usa Elite Sport (se empaqueta en js/vendor/firebase.js)
+// Subconjunto de Firebase que usa Elite Independiente (se empaqueta en js/vendor/firebase.js)
 export { initializeApp } from 'firebase/app';
 export { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 export {

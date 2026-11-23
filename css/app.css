@@ -1,4 +1,4 @@
-/* Elite Sport — estilos (mismo diseño de la app original, ampliado) */
+/* Elite Independiente — estilos (mismo diseño de la app original, ampliado) */
 @font-face{font-family:"Barlow Condensed";font-weight:600;font-display:swap;src:url(../assets/fonts/barlow-condensed-latin-600-normal.woff2) format("woff2")}
 @font-face{font-family:"Barlow Condensed";font-weight:700;font-display:swap;src:url(../assets/fonts/barlow-condensed-latin-700-normal.woff2) format("woff2")}
 @font-face{font-family:"Barlow Condensed";font-weight:800;font-display:swap;src:url(../assets/fonts/barlow-condensed-latin-800-normal.woff2) format("woff2")}
@@ -18,7 +18,7 @@ header{background:linear-gradient(rgba(141,0,20,.62),rgba(141,0,20,.72)),url(../
 .brand{display:flex;align-items:center;gap:12px;margin-bottom:10px;max-width:640px;margin-left:auto;margin-right:auto}
 .crest{width:52px;height:52px;border-radius:50%;background:#fff;border:3px solid var(--gold);overflow:hidden;flex:none}
 .crest img{width:100%;height:100%;object-fit:cover;display:block}
-h1{font:800 36px/1 var(--cond);margin:0;letter-spacing:1px}
+h1{font:800 clamp(19px,6.1vw,34px)/1.05 var(--cond);margin:0 0 2px;letter-spacing:.5px;white-space:nowrap}
 .rolebadge{font:700 15px var(--cond);color:#fff;letter-spacing:.4px;min-height:18px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .gold{color:var(--gold)}
 .sync{font:700 13px var(--cond);letter-spacing:.3px}

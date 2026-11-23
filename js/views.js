@@ -1,4 +1,4 @@
-// Pantallas de Elite Sport (HTML). Solo dibujan; las acciones están en actions.js.
+// Pantallas de Elite Independiente (HTML). Solo dibujan; las acciones están en actions.js.
 import * as B from './backend.js';
 import { D, U, R, cats, C, P, cname, players, myPlayer, userOf, photoOf, users, pendingUsers, feeOf, paidOf, nameMatch, isHostUser, playerOfUser, list } from './state.js';
 import { esc, ymd, today, fmtDay, fmtShort, fmtTime, monthName, monthShort, addMonth, ago, stamp, money, slug, initials, firstName, byName, cap, thisMonth } from './util.js';
@@ -85,7 +85,7 @@ export function navHtml() {
 
 // ── Bienvenida / registro ───────────────────────────────────────────────────
 export function gateHead(sub) {
-  return `<div class="gate"><button class="hostkey" data-act="hostkey" aria-label="Acceso de anfitrión">🔑</button><img src="assets/escudo.jpg" alt="Escudo Elite Sport"><div class="gt">ELITE SPORT</div><div class="gs">${sub}</div></div>`;
+  return `<div class="gate"><button class="hostkey" data-act="hostkey" aria-label="Acceso de anfitrión">🔑</button><img src="assets/escudo.jpg" alt="Escudo Elite Independiente"><div class="gt">ELITE INDEPENDIENTE</div><div class="gs">${sub}</div></div>`;
 }
 function installCard() {
   if (isApp()) return '';
@@ -147,7 +147,7 @@ export function vInicio() {
   }
   const up = upMatches(fc)[0];
   if (up) h += heroMatch(up);
-  else if (R.host) h += `<div class="card hero"><div class="big">Bienvenido, Elite Sport</div><small>${cats().length ? 'No hay partidos programados.' : 'Crea tus categorías y agrega a tus jugadores.'}</small></div>`;
+  else if (R.host) h += `<div class="card hero"><div class="big">Bienvenido, Elite Independiente</div><small>${cats().length ? 'No hay partidos programados.' : 'Crea tus categorías y agrega a tus jugadores.'}</small></div>`;
   const nt = upTrain(fc)[0];
   if (nt) h += trainMini(nt);
   h += '<h2>Categorías</h2>';
