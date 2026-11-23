@@ -12,10 +12,10 @@
 //  aparato, sin sincronizar), útil para probar el diseño.
 // ─────────────────────────────────────────────────────────────────────────────
 export const FIREBASE = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyBpcaxwTMF3VVYD66Wdr8kwcamREeN1bvc",
+  authDomain: "elite-sport-ea360.firebaseapp.com",
+  projectId: "elite-sport-ea360",
+  storageBucket: "elite-sport-ea360.firebasestorage.app",
+  messagingSenderId: "518353180582",
+  appId: "1:518353180582:web:08e23ed5a98eed6bea6167"
 };
