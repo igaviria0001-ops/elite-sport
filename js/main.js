@@ -105,4 +105,4 @@ setInterval(render, 60 * 1000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
 
 // La app se guarda en el celular para abrir sin internet (siempre trae la última versión si hay red).
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window) navigator.serviceWorker.register('sw.js').catch(() => {});

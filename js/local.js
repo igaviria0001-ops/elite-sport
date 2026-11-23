@@ -7,6 +7,8 @@ import { LS } from './util.js';
 
 const LOCAL_CODE = 'DEMO';
 const KEY = 'esl_db', IKEY = 'esl_img_';
+const CAN = (() => { try { localStorage.setItem('esl_t', '1'); localStorage.removeItem('esl_t'); return true; } catch (e) { return false; } })();
+const IMG = new Map(); // fotos en memoria (por si el navegador no deja guardar)
 let DB = load();
 const bc = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('esl') : null;
 const subs = new Set();
@@ -14,6 +16,7 @@ const subs = new Set();
 function load() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { return {}; } }
 function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
 function getRaw(path) {
+  if (path.startsWith('img/') && IMG.has(path)) return IMG.get(path);
   if (path.startsWith('img/')) { try { const v = localStorage.getItem(IKEY + path.slice(4)); return v ? JSON.parse(v) : undefined; } catch (e) { return undefined; } }
   return DB[path];
 }
@@ -21,10 +24,12 @@ function persist(changed) {
   const imgs = changed.filter(p => p.startsWith('img/'));
   for (const p of imgs) {
     const v = DB[p]; delete DB[p];
+    if (v === undefined) IMG.delete(p); else IMG.set(p, v);
+    if (!CAN) continue;
     if (v === undefined) localStorage.removeItem(IKEY + p.slice(4));
     else localStorage.setItem(IKEY + p.slice(4), JSON.stringify(v));
   }
-  localStorage.setItem(KEY, JSON.stringify(DB));
+  if (CAN) localStorage.setItem(KEY, JSON.stringify(DB));
   bc && bc.postMessage({ paths: changed });
 }
 if (bc) bc.onmessage = e => { DB = load(); notify(e.data.paths || []); };
@@ -44,6 +49,7 @@ export function onAuthStateChanged(_a, cb) {
 }
 export async function signInAnonymously() {
   if (!user) { user = { uid: 'u' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36).slice(-4), isAnonymous: true }; LS.set('luid', user.uid); }
+  else if (!LS.get('luid')) LS.set('luid', user.uid);
   authFns.forEach(f => f(user));
   return { user };
 }
